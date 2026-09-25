@@ -1,4 +1,4 @@
-import { draftSchema, isGrcDraft } from "@/lib/grc-assessment";
+import { draftSchema, parseGrcDraftResponse } from "@/lib/grc-assessment";
 
 export async function POST(request: Request) {
   if (!process.env.OPENAI_API_KEY) return Response.json({ error: "AI drafting is not configured. Add OPENAI_API_KEY to your server environment and try again." }, { status: 503 });
@@ -12,12 +12,18 @@ export async function POST(request: Request) {
         input: JSON.stringify(body.stakeholderInput), text: { format: { type: "json_schema", name: "grc_assessment_draft", strict: true, schema: draftSchema } },
       }),
     });
-    if (!response.ok) return Response.json({ error: "The AI service could not prepare a draft. Please try again." }, { status: 502 });
-    const payload = await response.json() as { output_text?: string };
-    const draft = payload.output_text ? JSON.parse(payload.output_text) : null;
-    if (!isGrcDraft(draft)) return Response.json({ error: "The AI response did not match the required assessment format. Please try again." }, { status: 502 });
-    return Response.json({ draft });
-  } catch {
+    if (!response.ok) {
+      console.error("GRC draft OpenAI request failed", { status: response.status, requestId: response.headers.get("x-request-id") });
+      return Response.json({ error: "The AI service could not prepare a draft. Please try again." }, { status: 502 });
+    }
+    const parsed = parseGrcDraftResponse(await response.json());
+    if (!parsed.draft) {
+      console.error("GRC draft response could not be validated", { issue: parsed.issue, requestId: response.headers.get("x-request-id") });
+      return Response.json({ error: "The AI service returned an unusable assessment draft. Please try again." }, { status: 502 });
+    }
+    return Response.json({ draft: parsed.draft });
+  } catch (error) {
+    console.error("GRC draft route failed", { name: error instanceof Error ? error.name : "unknown" });
     return Response.json({ error: "Unable to prepare an AI draft right now. Your stakeholder input has not been lost in this session." }, { status: 500 });
   }
 }

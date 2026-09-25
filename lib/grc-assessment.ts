@@ -20,6 +20,25 @@ export function isGrcDraft(value: unknown): value is GrcDraft {
   return stringFields.every((key) => typeof draft[key] === "string") && listFields.every((key) => Array.isArray(draft[key]) && draft[key].every((item) => typeof item === "string")) && valid(draft.assetType, assetTypes) && valid(draft.criticality, criticalityValues) && ["confidentiality", "integrity", "availability", "suggestedLikelihood", "suggestedImpact"].every((key) => valid(draft[key], ciaValues));
 }
 
+type ResponseContent = { type?: string; text?: string; refusal?: string };
+type ResponsesPayload = { status?: string; output_text?: string; output?: Array<{ type?: string; content?: ResponseContent[] }> };
+
+export function parseGrcDraftResponse(payload: unknown): { draft?: GrcDraft; issue?: string } {
+  if (!payload || typeof payload !== "object") return { issue: "response was not an object" };
+  const response = payload as ResponsesPayload;
+  if (response.status && response.status !== "completed") return { issue: `response status was ${response.status}` };
+  const content = response.output?.flatMap((item) => item.content ?? []) ?? [];
+  if (content.some((item) => item.refusal)) return { issue: "model returned a refusal" };
+  const text = response.output_text ?? content.filter((item) => item.type === "output_text").map((item) => item.text ?? "").join("");
+  if (!text) return { issue: "response contained no output text" };
+  try {
+    const draft = JSON.parse(text);
+    return isGrcDraft(draft) ? { draft } : { issue: "parsed JSON failed GRC draft validation" };
+  } catch {
+    return { issue: "output text was not valid JSON" };
+  }
+}
+
 export const draftSchema = {
   type: "object", additionalProperties: false,
   properties: {
