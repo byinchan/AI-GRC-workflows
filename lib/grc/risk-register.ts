@@ -9,6 +9,7 @@ export type ReviewedAssessment = Omit<RiskRegisterRecord, "id" | "riskScore" | "
 const treatmentDays: Record<RiskRating, number> = { Critical: 14, High: 30, Medium: 60, Low: 90 };
 
 export function nextRiskId(records: Pick<RiskRegisterRecord, "id">[]) { return `RISK-${String(records.length + 1).padStart(3, "0")}`; }
+export function appendRiskRecord(records: RiskRegisterRecord[], record: RiskRegisterRecord) { return records.some(({ id }) => id === record.id) ? records : [...records, record]; }
 function sentenceFragment(value: string) {
   const trimmed = value.trim().replace(/[.,;:!?\s]+$/, "");
   return trimmed ? trimmed.charAt(0).toLowerCase() + trimmed.slice(1) : "";

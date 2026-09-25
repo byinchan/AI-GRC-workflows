@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canAddToRegister, cleanTreatmentPlan, createRiskRegisterRecord, createRiskStatement, nextRiskId, suggestedTargetDate } from "../lib/grc/risk-register.ts";
+import { appendRiskRecord, canAddToRegister, cleanTreatmentPlan, createRiskRegisterRecord, createRiskStatement, nextRiskId, suggestedTargetDate } from "../lib/grc/risk-register.ts";
 
 const reviewed = { asset: "Payments service", businessOwner: "Finance", threat: "Unauthorized access", vulnerability: "Weak access reviews", businessImpact: "Payment data could be exposed", existingControls: "Quarterly reviews", likelihood: 2 as const, impact: 3 as const, rationale: "Analyst reviewed evidence." };
 
@@ -42,4 +42,14 @@ test("carries analyst-reviewed values and deterministic result into a register r
   assert.equal(record.impact, 3);
   assert.equal(record.riskScore, 6);
   assert.equal(record.riskRating, "High");
+});
+
+test("appends independent sequential risk records without removing the portfolio", () => {
+  const first = createRiskRegisterRecord(reviewed, []);
+  const second = createRiskRegisterRecord({ ...reviewed, asset: "Network service", likelihood: 3, impact: 3 }, [first]);
+  const third = createRiskRegisterRecord({ ...reviewed, asset: "AI service", likelihood: 1, impact: 3 }, [first, second]);
+  const portfolio = appendRiskRecord(appendRiskRecord(appendRiskRecord([], first), second), third);
+  assert.deepEqual(portfolio.map((record) => record.id), ["RISK-001", "RISK-002", "RISK-003"]);
+  assert.deepEqual(portfolio.map((record) => record.asset), ["Payments service", "Network service", "AI service"]);
+  assert.equal(appendRiskRecord(portfolio, second).length, 3);
 });
