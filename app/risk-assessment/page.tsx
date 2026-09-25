@@ -12,7 +12,7 @@ export default function RiskAssessmentPage() {
         <header className="mt-12 max-w-3xl sm:mt-16">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-teal-700">Business intake → GRC review</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">A clearer path from business context to GRC review.</h1>
-          <p className="mt-4 text-lg leading-8 text-slate-600">Business stakeholders share what they know in plain language. GRC analysts use that context to guide the assessment—without asking the stakeholder to make risk judgments.</p>
+          <p className="mt-4 text-lg leading-8 text-slate-600">Business stakeholders share what they know in plain language. GRC analysts use that context to guide the assessment - without asking the stakeholder to make risk judgments.</p>
         </header>
         <RiskAssessmentForm />
       </div>
