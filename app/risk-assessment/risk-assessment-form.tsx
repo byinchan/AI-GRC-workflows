@@ -11,6 +11,7 @@ import {
   IntakeValues,
 } from "@/lib/demo-scenarios";
 import { GrcDraft } from "@/lib/grc-assessment";
+import { findSimilarSubmission, ReviewSubmission } from "@/lib/grc/review-queue";
 import { calculateRisk, RiskLevel, toRiskLevel } from "@/lib/grc/risk";
 import {
   canAddToRegister,
@@ -80,8 +81,10 @@ function fallback(values: Record<string, string>): GrcDraft {
 }
 
 export function RiskAssessmentForm() {
-  const { addSubmission, activeSubmission } = useRiskRegister();
+  const { addSubmission, activeSubmission, submissions } = useRiskRegister();
   const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [similarSubmission, setSimilarSubmission] = useState<ReviewSubmission | null>(null);
+  const [pendingSubmission, setPendingSubmission] = useState<Record<string, string> | null>(null);
   const [intakeMethod, setIntakeMethod] = useState<"guided" | "findings">(
     "guided",
   );
@@ -105,16 +108,18 @@ export function RiskAssessmentForm() {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const source = intakeMethod === "guided" ? values : { stakeholderFindings: findings };
+    const similar = findSimilarSubmission(source, submissions);
+    if (similar) { setSimilarSubmission(similar); setPendingSubmission(source); return; }
     setSubmissionId(addSubmission(source).id);
   };
-  async function openReview() {
-    if (!submitted) return;
+  async function openReview(source = submitted) {
+    if (!source) return;
     setLoading(true);
     try {
       const response = await fetch("/api/grc-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stakeholderInput: submitted }),
+        body: JSON.stringify({ stakeholderInput: source }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error);
@@ -123,14 +128,21 @@ export function RiskAssessmentForm() {
       setMessage(
         `${error instanceof Error ? error.message : "AI drafting failed."} Continuing with an analyst-ready draft.`,
       );
-      setDraft(fallback(submitted));
+      setDraft(fallback(source));
     } finally {
       setLoading(false);
     }
   }
+  useEffect(() => {
+    if (activeSubmission && !draft && !submitted) {
+      setSubmitted(activeSubmission.source);
+      void openReview(activeSubmission.source);
+    }
+  }, [activeSubmission, draft, submitted]);
   if (draft && submitted) return <Review draft={draft} source={submitted} />;
+  if (similarSubmission && pendingSubmission) return <section className="mt-10 rounded-2xl border border-amber-300 bg-white p-8"><p className="text-sm font-semibold uppercase tracking-wide text-amber-800">Business Stakeholder</p><h2 className="mt-2 text-2xl font-semibold">Similar submission identified</h2><p className="mt-2 text-slate-600">A similar risk concern has already been submitted for GRC review as {similarSubmission.id}. Review the existing submission or continue if this represents a separate concern.</p><div className="mt-4 rounded-lg bg-amber-50 p-4 text-sm"><b>{similarSubmission.id}</b><br />{similarSubmission.source.assessmentSubject || similarSubmission.source.stakeholderFindings || "Stakeholder submission"}</div><div className="mt-5 flex gap-3"><Link className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" href="/grc-review">View Existing Submission</Link><button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white" onClick={() => { setSubmissionId(addSubmission(pendingSubmission).id); setSimilarSubmission(null); setPendingSubmission(null); }}>Submit Anyway</button></div></section>;
   if (submissionId) return <section className="mt-10 rounded-2xl border border-teal-200 bg-white p-8"><p className="text-sm font-semibold uppercase tracking-wide text-teal-700">Business Stakeholder</p><h2 className="mt-2 text-2xl font-semibold">Submitted to GRC Review</h2><p className="mt-2 text-slate-600">{submissionId} has been submitted for GRC review.</p><div className="mt-6 flex gap-3"><button className="rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white" onClick={() => { setSubmissionId(null); setValues(blankIntakeValues); setFindings(""); }}>Submit Another Risk</button><Link className="rounded-lg border border-slate-300 px-5 py-3 text-sm font-semibold" href="/grc-review">Open GRC Review Queue</Link></div></section>;
-  if (activeSubmission) return <section className="mt-10 rounded-2xl border border-teal-200 bg-white p-8"><p className="text-sm font-semibold uppercase tracking-wide text-teal-700">GRC Analyst</p><h2 className="mt-2 text-2xl font-semibold">Review {activeSubmission.id}</h2><button className="mt-6 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white" onClick={() => setSubmitted(activeSubmission.source)}>Open GRC Review</button></section>;
+  if (activeSubmission) return <section className="mt-10 rounded-2xl border border-teal-200 bg-white p-8"><p className="text-sm font-semibold uppercase tracking-wide text-teal-700">GRC Analyst</p><h2 className="mt-2 text-2xl font-semibold">Opening {activeSubmission.id} for review</h2><p className="mt-2 text-sm text-slate-600">Loading the stakeholder source information and AI-assisted draft.</p></section>;
   if (submitted)
     return (
       <section className="mt-10 rounded-2xl border border-teal-200 bg-white p-8">
@@ -148,7 +160,7 @@ export function RiskAssessmentForm() {
         <button
           className="mt-6 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
           disabled={loading}
-          onClick={openReview}
+          onClick={() => openReview()}
         >
           {loading ? "Preparing review…" : "Open GRC Review"}
         </button>
