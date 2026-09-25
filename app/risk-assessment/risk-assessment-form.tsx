@@ -80,6 +80,8 @@ function fallback(values: Record<string, string>): GrcDraft {
 }
 
 export function RiskAssessmentForm() {
+  const { addSubmission, activeSubmission } = useRiskRegister();
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [intakeMethod, setIntakeMethod] = useState<"guided" | "findings">(
     "guided",
   );
@@ -102,9 +104,8 @@ export function RiskAssessmentForm() {
   };
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    setSubmitted(
-      intakeMethod === "guided" ? values : { stakeholderFindings: findings },
-    );
+    const source = intakeMethod === "guided" ? values : { stakeholderFindings: findings };
+    setSubmissionId(addSubmission(source).id);
   };
   async function openReview() {
     if (!submitted) return;
@@ -128,6 +129,8 @@ export function RiskAssessmentForm() {
     }
   }
   if (draft && submitted) return <Review draft={draft} source={submitted} />;
+  if (submissionId) return <section className="mt-10 rounded-2xl border border-teal-200 bg-white p-8"><p className="text-sm font-semibold uppercase tracking-wide text-teal-700">Business Stakeholder</p><h2 className="mt-2 text-2xl font-semibold">Submitted to GRC Review</h2><p className="mt-2 text-slate-600">{submissionId} has been submitted for GRC review.</p><div className="mt-6 flex gap-3"><button className="rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white" onClick={() => { setSubmissionId(null); setValues(blankIntakeValues); setFindings(""); }}>Submit Another Risk</button><Link className="rounded-lg border border-slate-300 px-5 py-3 text-sm font-semibold" href="/grc-review">Open GRC Review Queue</Link></div></section>;
+  if (activeSubmission) return <section className="mt-10 rounded-2xl border border-teal-200 bg-white p-8"><p className="text-sm font-semibold uppercase tracking-wide text-teal-700">GRC Analyst</p><h2 className="mt-2 text-2xl font-semibold">Review {activeSubmission.id}</h2><button className="mt-6 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white" onClick={() => setSubmitted(activeSubmission.source)}>Open GRC Review</button></section>;
   if (submitted)
     return (
       <section className="mt-10 rounded-2xl border border-teal-200 bg-white p-8">
@@ -482,7 +485,7 @@ function Register({
   rationale: string;
   rating: RiskRegisterRecord["riskRating"];
 }) {
-  const { records, addRecord } = useRiskRegister();
+  const { records, addRecord, activeSubmission, markRegistered } = useRiskRegister();
   const [statement, setStatement] = useState(
     createRiskStatement(
       review.threat,
@@ -569,8 +572,13 @@ function Register({
       riskOwner: owner,
       targetDate: date,
       status,
+      sourceSubmissionId: activeSubmission?.id,
+      missingInformation: review.missingInformation,
+      assumptions: review.assumptions,
+      uncertainties: review.uncertainties,
     });
     addRecord(record);
+    if (activeSubmission) markRegistered(activeSubmission.id, record.id);
     setDone(true);
   }
   function add() {

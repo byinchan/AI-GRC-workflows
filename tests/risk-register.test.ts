@@ -63,4 +63,10 @@ test("flags an obvious normalized potential duplicate before it is registered", 
   assert.equal(portfolioSummaryForTest([original]).Total, 1);
 });
 
+test("does not let treatment or risk statement wording suppress a material duplicate", () => {
+  const original = createRiskRegisterRecord(reviewed, []);
+  const changed = { ...reviewed, threat: "Unauthorized access to payment information", businessImpact: "Payment information could be exposed to unauthorized parties" };
+  assert.equal(findPotentialDuplicate(changed, [{ ...original, treatmentStrategy: "Accept", riskStatement: "Different wording" }])?.id, "RISK-001");
+});
+
 function portfolioSummaryForTest(records: ReturnType<typeof createRiskRegisterRecord>[]) { return { Total: records.length }; }
