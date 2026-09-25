@@ -9,7 +9,25 @@ export type ReviewedAssessment = Omit<RiskRegisterRecord, "id" | "riskScore" | "
 const treatmentDays: Record<RiskRating, number> = { Critical: 14, High: 30, Medium: 60, Low: 90 };
 
 export function nextRiskId(records: Pick<RiskRegisterRecord, "id">[]) { return `RISK-${String(records.length + 1).padStart(3, "0")}`; }
-export function createRiskStatement(threat: string, vulnerability: string, consequence: string) { return [threat, vulnerability, consequence].every((value) => value.trim()) ? `If ${threat.trim()} occurs because of ${vulnerability.trim()}, ${consequence.trim()}.` : "Complete the threat, vulnerability, and business consequence to form a risk statement."; }
+function sentenceFragment(value: string) {
+  const trimmed = value.trim().replace(/[.,;:!?\s]+$/, "");
+  return trimmed ? trimmed.charAt(0).toLowerCase() + trimmed.slice(1) : "";
+}
+
+export function createRiskStatement(threat: string, vulnerability: string, consequence: string) {
+  if (![threat, vulnerability, consequence].every((value) => value.trim())) return "Complete the threat, vulnerability, and business consequence to form a risk statement.";
+  return `If ${sentenceFragment(threat)} occurs because of ${sentenceFragment(vulnerability)}, ${sentenceFragment(consequence)}.`;
+}
+
+export function cleanTreatmentPlan(value: string) {
+  return value
+    .replace(/#{1,6}/g, "")
+    .replace(/\*\*/g, "")
+    .replace(/---+/g, "")
+    .replace(/^\s*[-*]\s+/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 export function suggestedTargetDate(rating: RiskRating, completedOn = new Date()) { const date = new Date(completedOn); date.setDate(date.getDate() + treatmentDays[rating]); return date.toISOString().slice(0, 10); }
 export function canAddToRegister(strategy: RiskRegisterRecord["treatmentStrategy"], plan: string) { return strategy !== "Mitigate" || Boolean(plan.trim()); }
 export function createRiskRegisterRecord(assessment: ReviewedAssessment, existing: Pick<RiskRegisterRecord, "id">[]): RiskRegisterRecord { const { score: riskScore, rating: riskRating } = calculateRisk(assessment.likelihood, assessment.impact); return { ...assessment, id: nextRiskId(existing), riskScore, riskRating, riskStatement: createRiskStatement(assessment.threat, assessment.vulnerability, assessment.businessImpact), treatmentStrategy: "Mitigate", treatmentPlan: "", riskOwner: assessment.businessOwner, targetDate: suggestedTargetDate(riskRating), status: "Open" }; }
