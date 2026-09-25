@@ -3,31 +3,715 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRiskRegister } from "@/components/risk-register-provider";
-import { blankIntakeValues, demoScenarios, intakeFieldNames, IntakeFieldName, IntakeValues } from "@/lib/demo-scenarios";
+import {
+  blankIntakeValues,
+  demoScenarios,
+  intakeFieldNames,
+  IntakeFieldName,
+  IntakeValues,
+} from "@/lib/demo-scenarios";
 import { GrcDraft } from "@/lib/grc-assessment";
 import { calculateRisk, RiskLevel, toRiskLevel } from "@/lib/grc/risk";
-import { canAddToRegister, cleanTreatmentPlan, createRiskRegisterRecord, createRiskStatement, riskStatuses, RiskRegisterRecord, suggestedTargetDate, treatmentStrategies } from "@/lib/grc/risk-register";
+import {
+  canAddToRegister,
+  cleanTreatmentPlan,
+  createRiskRegisterRecord,
+  createRiskStatement,
+  findPotentialDuplicate,
+  riskStatuses,
+  RiskRegisterRecord,
+  suggestedTargetDate,
+  treatmentStrategies,
+} from "@/lib/grc/risk-register";
 
 const intakeLabels: Record<IntakeFieldName, string> = {
-  assessmentSubject: "What is being assessed?", businessPurpose: "What does it do, and why is it important?", businessOwner: "Who owns it?", identifiedConcern: "What risk, concern, or situation has been identified?", possibleOutcome: "What could happen if it occurred?", affectedAreas: "What systems, information, services, or processes could be affected?", existingSafeguards: "What safeguards or controls already exist?", additionalContext: "Anything else that is relevant?",
+  assessmentSubject: "What is being assessed?",
+  businessPurpose: "What does it do, and why is it important?",
+  businessOwner: "Who owns it?",
+  identifiedConcern: "What risk, concern, or situation has been identified?",
+  possibleOutcome: "What could happen if it occurred?",
+  affectedAreas:
+    "What systems, information, services, or processes could be affected?",
+  existingSafeguards: "What safeguards or controls already exist?",
+  additionalContext: "Anything else that is relevant?",
 };
-const sourceLabels: Record<string, string> = { ...intakeLabels, stakeholderFindings: "Prepared stakeholder findings" };
-const draftLabels: Record<string, string> = { asset: "Asset", description: "Description", assetType: "Asset Type", businessOwner: "Business Owner", threat: "Threat / Risk Event", vulnerability: "Vulnerability or Contributing Condition", businessImpact: "Business Impact / Consequence", existingControls: "Existing Controls", missingInformation: "Missing Information", assumptions: "Assumptions", uncertainties: "Uncertainties" };
-const fieldClass = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+const sourceLabels: Record<string, string> = {
+  ...intakeLabels,
+  stakeholderFindings: "Prepared stakeholder findings",
+};
+const draftLabels: Record<string, string> = {
+  asset: "Asset",
+  description: "Description",
+  assetType: "Asset Type",
+  businessOwner: "Business Owner",
+  threat: "Threat / Risk Event",
+  vulnerability: "Vulnerability or Contributing Condition",
+  businessImpact: "Business Impact / Consequence",
+  existingControls: "Existing Controls",
+  missingInformation: "Missing Information",
+  assumptions: "Assumptions",
+  uncertainties: "Uncertainties",
+};
+const fieldClass =
+  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
 
-function fallback(values: Record<string, string>): GrcDraft { const findings = values.stakeholderFindings ?? ""; return { asset: values.assessmentSubject || "Requires analyst review", description: values.businessPurpose || findings, assetType: "Other", businessOwner: values.businessOwner || "Requires analyst review", criticality: "Medium", confidentiality: "2 Medium", integrity: "2 Medium", availability: "2 Medium", threat: values.identifiedConcern || "Requires analyst review", vulnerability: "", businessImpact: values.possibleOutcome || findings, existingControls: values.existingSafeguards || "", suggestedLikelihood: "2 Medium", suggestedImpact: "2 Medium", suggestedRiskRationale: "AI draft unavailable; analyst review is required.", missingInformation: ["Vulnerability details require analyst review."], assumptions: [], uncertainties: ["No AI recommendation was generated."] }; }
-
-export function RiskAssessmentForm() {
-  const [intakeMethod, setIntakeMethod] = useState<"guided" | "findings">("guided"); const [values, setValues] = useState<IntakeValues>(blankIntakeValues); const [findings, setFindings] = useState(""); const [scenarioId, setScenarioId] = useState(demoScenarios[0].id); const [submitted, setSubmitted] = useState<Record<string, string> | null>(null); const [draft, setDraft] = useState<GrcDraft | null>(null); const [message, setMessage] = useState(""); const [loading, setLoading] = useState(false);
-  const reset = () => { setValues(blankIntakeValues); setFindings(""); setSubmitted(null); setDraft(null); setMessage(""); setIntakeMethod("guided"); };
-  const submit = (event: FormEvent) => { event.preventDefault(); setSubmitted(intakeMethod === "guided" ? values : { stakeholderFindings: findings }); };
-  async function openReview() { if (!submitted) return; setLoading(true); try { const response = await fetch("/api/grc-draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stakeholderInput: submitted }) }); const body = await response.json(); if (!response.ok) throw new Error(body.error); setDraft(body.draft); } catch (error) { setMessage(`${error instanceof Error ? error.message : "AI drafting failed."} Continuing with an analyst-ready draft.`); setDraft(fallback(submitted)); } finally { setLoading(false); } }
-  if (draft && submitted) return <Review draft={draft} source={submitted} />;
-  if (submitted) return <section className="mt-10 rounded-2xl border border-teal-200 bg-white p-8"><p className="text-sm font-semibold uppercase tracking-wide text-teal-700">Business Stakeholder</p><h2 className="mt-2 text-2xl font-semibold">Submitted for GRC Review</h2><p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">Your business context has been handed to the prototype GRC review workflow. It does not determine the final risk decision.</p>{message && <p className="mt-3 text-sm text-amber-800">{message}</p>}<button className="mt-6 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60" disabled={loading} onClick={openReview}>{loading ? "Preparing review…" : "Open GRC Review"}</button></section>;
-  return <form className="mt-10 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" onSubmit={submit}><div className="rounded-xl bg-teal-50 p-4 text-sm"><b>Business Stakeholder</b><br />Share the context you know. GRC analysts - not stakeholders or AI - make the final risk decisions.</div><div className="mt-5 rounded-xl border border-dashed border-teal-300 bg-teal-50/50 p-4"><p className="text-sm font-semibold">Demo Tools</p><p className="mt-1 text-xs text-slate-600">Load one of three fictional Pacific Utilities Corporation scenarios. These only populate stakeholder context; no analyst decisions are pre-set.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><select className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" value={scenarioId} onChange={(event) => setScenarioId(event.target.value)}>{demoScenarios.map((scenario) => <option key={scenario.id} value={scenario.id}>{scenario.name}</option>)}</select><button className="rounded-md bg-teal-800 px-3 py-2 text-xs font-semibold text-white" type="button" onClick={() => { const scenario = demoScenarios.find((item) => item.id === scenarioId); if (scenario) { setValues(scenario.values); setIntakeMethod("guided"); } }}>Load demo scenario</button><button className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold" type="button" onClick={reset}>Reset Demo</button></div></div><fieldset className="mt-6"><legend className="text-sm font-semibold">How would you like to provide the information?</legend><div className="mt-3 flex flex-col gap-3 sm:flex-row"><label className="rounded-lg border p-3 text-sm"><input checked={intakeMethod === "guided"} className="mr-2" name="intake-method" type="radio" onChange={() => setIntakeMethod("guided")} />Answer guided questions</label><label className="rounded-lg border p-3 text-sm"><input checked={intakeMethod === "findings"} className="mr-2" name="intake-method" type="radio" onChange={() => setIntakeMethod("findings")} />Paste prepared findings</label></div></fieldset>{intakeMethod === "guided" ? <div className="mt-6 space-y-4">{intakeFieldNames.map((name) => <label className="block" key={name}><span className="text-sm font-medium">{intakeLabels[name]}</span><textarea className={`${fieldClass} min-h-20`} value={values[name]} onChange={(event) => setValues({ ...values, [name]: event.target.value })} /></label>)}</div> : <label className="mt-6 block"><span className="text-sm font-medium">Prepared stakeholder findings</span><span className="mt-1 block text-xs text-slate-600">Paste discovery notes, interview findings, or a business summary. The GRC team will structure and review it.</span><textarea className={`${fieldClass} min-h-64`} value={findings} onChange={(event) => setFindings(event.target.value)} /></label>}<button className="mt-6 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white">Submit to GRC Team</button></form>;
+function fallback(values: Record<string, string>): GrcDraft {
+  const findings = values.stakeholderFindings ?? "";
+  return {
+    asset: values.assessmentSubject || "Requires analyst review",
+    description: values.businessPurpose || findings,
+    assetType: "Other",
+    businessOwner: values.businessOwner || "Requires analyst review",
+    criticality: "Medium",
+    confidentiality: "2 Medium",
+    integrity: "2 Medium",
+    availability: "2 Medium",
+    threat: values.identifiedConcern || "Requires analyst review",
+    vulnerability: "",
+    businessImpact: values.possibleOutcome || findings,
+    existingControls: values.existingSafeguards || "",
+    suggestedLikelihood: "2 Medium",
+    suggestedImpact: "2 Medium",
+    suggestedRiskRationale: "AI draft unavailable; analyst review is required.",
+    missingInformation: ["Vulnerability details require analyst review."],
+    assumptions: [],
+    uncertainties: ["No AI recommendation was generated."],
+  };
 }
 
-function Review({ draft, source }: { draft: GrcDraft; source: Record<string, string> }) { const [review, setReview] = useState(draft); const [likelihood, setLikelihood] = useState<RiskLevel>(toRiskLevel(draft.suggestedLikelihood)); const [impact, setImpact] = useState<RiskLevel>(toRiskLevel(draft.suggestedImpact)); const [rationale, setRationale] = useState(draft.suggestedRiskRationale); const result = calculateRisk(likelihood, impact); const update = (key: keyof GrcDraft, value: string) => setReview({ ...review, [key]: value }); return <section className="mt-10 space-y-6"><div className="rounded-xl bg-slate-900 p-5 text-white"><b>GRC Analyst Workspace</b><p className="mt-1 text-sm">Source Information ↓ AI-Generated Draft ↓ Analyst Decision ↓ Calculated Risk Result</p></div><div className="grid gap-6 lg:grid-cols-2"><section className="rounded-2xl border border-slate-200 bg-white p-6"><h2 className="font-semibold">SOURCE INFORMATION</h2>{Object.entries(source).map(([key, value]) => value && <div className="mt-4" key={key}><p className="text-xs font-medium uppercase tracking-wide text-slate-500">{sourceLabels[key] ?? key}</p><p className="mt-1 whitespace-pre-wrap text-sm">{value}</p></div>)}</section><section className="rounded-2xl border border-teal-200 bg-white p-6"><h2 className="font-semibold">AI-GENERATED DRAFT → ANALYST REVIEW</h2><p className="mt-1 text-xs text-slate-600">Every AI suggestion is editable and remains advisory until the analyst makes a decision.</p>{(["asset", "description", "businessOwner", "threat", "vulnerability", "businessImpact", "existingControls"] as const).map((key) => <label className="mt-4 block" key={key}><span className="text-sm font-medium">{draftLabels[key]}</span><i className="ml-2 text-xs text-teal-700">AI suggestion</i><textarea className={`${fieldClass} min-h-16`} value={review[key]} onChange={(event) => update(key, event.target.value)} /></label>)}<UncertaintyFields review={review} setReview={setReview} /></section></div><section className="rounded-2xl border border-slate-200 bg-white p-6"><h2 className="font-semibold">Analyst Decision → Calculated Risk Result</h2><p className="mt-1 text-sm text-slate-600">Likelihood is how plausible the event is; Impact is the business consequence if it happens. The app calculates the score and rating from the analyst’s final selections.</p><div className="mt-4 grid gap-4 sm:grid-cols-2"><Level label="Final Likelihood" value={likelihood} onChange={setLikelihood} /><Level label="Final Impact" value={impact} onChange={setImpact} /></div><label className="mt-4 block"><span className="text-sm font-medium">Analyst Rationale</span><textarea className={`${fieldClass} min-h-16`} value={rationale} onChange={(event) => setRationale(event.target.value)} /></label><p className="mt-5 rounded-lg bg-slate-900 p-4 text-white">Likelihood {likelihood} × Impact {impact} = Risk Score {result.score} → {result.rating}</p></section><Register review={review} likelihood={likelihood} impact={impact} rationale={rationale} rating={result.rating} /></section>; }
-function UncertaintyFields({ review, setReview }: { review: GrcDraft; setReview: (draft: GrcDraft) => void }) { return <>{(["missingInformation", "assumptions", "uncertainties"] as const).map((key) => <div className="mt-4" key={key}><p className="text-sm font-medium">{draftLabels[key]}</p><div className="mt-2 space-y-2">{review[key].map((item, index) => <div className="flex gap-2" key={`${key}-${index}`}><span className="pt-2 text-sm text-teal-700">{index + 1}.</span><textarea aria-label={`${draftLabels[key]} item ${index + 1}`} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" value={item} onChange={(event) => { const next = [...review[key]]; next[index] = event.target.value; setReview({ ...review, [key]: next }); }} /><button className="text-xs font-medium text-slate-600 underline" type="button" onClick={() => setReview({ ...review, [key]: review[key].filter((_, itemIndex) => itemIndex !== index) })}>Remove</button></div>)}</div><button className="mt-2 text-xs font-semibold text-teal-800 underline" type="button" onClick={() => setReview({ ...review, [key]: [...review[key], ""] })}>Add item</button></div>)}</>; }
-function Level({ label, value, onChange }: { label: string; value: RiskLevel; onChange: (value: RiskLevel) => void }) { return <label><span className="text-sm font-medium">{label}</span><select className={fieldClass} value={value} onChange={(event) => onChange(Number(event.target.value) as RiskLevel)}>{[1, 2, 3].map((level) => <option key={level} value={level}>{level} - {level === 1 ? "Low" : level === 2 ? "Medium" : "High"}</option>)}</select></label>; }
-function Register({ review, likelihood, impact, rationale, rating }: { review: GrcDraft; likelihood: RiskLevel; impact: RiskLevel; rationale: string; rating: RiskRegisterRecord["riskRating"] }) { const { records, addRecord } = useRiskRegister(); const [statement, setStatement] = useState(createRiskStatement(review.threat, review.vulnerability, review.businessImpact)); const [strategy, setStrategy] = useState<RiskRegisterRecord["treatmentStrategy"]>("Mitigate"); const [plan, setPlan] = useState(""); const [owner, setOwner] = useState(review.businessOwner); const [date, setDate] = useState(suggestedTargetDate(rating)); const [dateEdited, setDateEdited] = useState(false); const [status, setStatus] = useState<RiskRegisterRecord["status"]>("Open"); const [suggesting, setSuggesting] = useState(false); const [note, setNote] = useState(""); const [done, setDone] = useState(false); useEffect(() => { if (!dateEdited) setDate(suggestedTargetDate(rating)); }, [rating, dateEdited]); async function suggest() { setSuggesting(true); try { const response = await fetch("/api/treatment-suggestion", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ asset: review.asset, threat: review.threat, vulnerability: review.vulnerability, businessImpact: review.businessImpact, existingControls: review.existingControls, likelihood, impact, riskRating: rating, treatmentStrategy: strategy }) }); const body = await response.json(); if (!response.ok) throw new Error(body.error); setPlan(cleanTreatmentPlan(body.suggestion)); setNote("AI suggestion loaded. Review and edit it before adding the record."); } catch (error) { setNote(error instanceof Error ? error.message : "Unable to load an AI suggestion."); } finally { setSuggesting(false); } } function add() { if (!canAddToRegister(strategy, plan)) { setNote("A Treatment Action / Plan is required when the strategy is Mitigate."); return; } const record = createRiskRegisterRecord({ asset: review.asset, businessOwner: review.businessOwner, threat: review.threat, vulnerability: review.vulnerability, businessImpact: review.businessImpact, existingControls: review.existingControls, likelihood, impact, rationale }, records); Object.assign(record, { riskStatement: statement, treatmentStrategy: strategy, treatmentPlan: cleanTreatmentPlan(plan), riskOwner: owner, targetDate: date, status }); addRecord(record); setDone(true); } if (done) return <section className="rounded-2xl border border-teal-200 bg-white p-6"><b>Added to Risk Register</b><p className="mt-2 text-sm">The final analyst-reviewed record is available only in this browser session.</p><Link className="mt-4 inline-block rounded bg-slate-900 px-4 py-2 text-sm text-white" href="/risk-register">Open Risk Register</Link></section>; return <section className="rounded-2xl border border-teal-200 bg-white p-6"><h2 className="font-semibold">Add to Risk Register</h2><label className="mt-4 block"><span className="text-sm font-medium">Risk Statement</span><textarea className={`${fieldClass} min-h-16`} value={statement} onChange={(event) => setStatement(event.target.value)} /></label><label className="mt-3 block"><span className="text-sm font-medium">Treatment Strategy</span><select className={fieldClass} value={strategy} onChange={(event) => setStrategy(event.target.value as RiskRegisterRecord["treatmentStrategy"])}>{treatmentStrategies.map((item) => <option key={item}>{item}</option>)}</select></label><label className="mt-3 block"><span className="text-sm font-medium">Treatment Action / Plan</span><i className="ml-2 text-xs text-teal-700">AI suggestion, analyst editable</i><textarea className={`${fieldClass} min-h-28`} value={plan} onChange={(event) => setPlan(cleanTreatmentPlan(event.target.value))} /></label><button className="mt-3 rounded border px-3 py-2 text-sm" type="button" disabled={suggesting} onClick={suggest}>{suggesting ? "Generating…" : "Suggest Treatment Plan"}</button>{note && <p className="mt-2 text-sm text-slate-600">{note}</p>}<div className="mt-3 grid gap-3 sm:grid-cols-2"><label><span className="text-sm font-medium">Risk Owner</span><input className={fieldClass} value={owner} onChange={(event) => setOwner(event.target.value)} /></label><label><span className="text-sm font-medium">Target Date</span><span className="block text-xs text-slate-500">Suggested from the final {rating} rating; the analyst may override it.</span><input className={fieldClass} type="date" value={date} onChange={(event) => { setDateEdited(true); setDate(event.target.value); }} /></label></div><label className="mt-3 block"><span className="text-sm font-medium">Status</span><select className={fieldClass} value={status} onChange={(event) => setStatus(event.target.value as RiskRegisterRecord["status"])}>{riskStatuses.map((item) => <option key={item}>{item}</option>)}</select></label><button className="mt-5 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white" type="button" onClick={add}>Add to Risk Register</button></section>; }
+export function RiskAssessmentForm() {
+  const [intakeMethod, setIntakeMethod] = useState<"guided" | "findings">(
+    "guided",
+  );
+  const [values, setValues] = useState<IntakeValues>(blankIntakeValues);
+  const [findings, setFindings] = useState("");
+  const [scenarioId, setScenarioId] = useState(demoScenarios[0].id);
+  const [submitted, setSubmitted] = useState<Record<string, string> | null>(
+    null,
+  );
+  const [draft, setDraft] = useState<GrcDraft | null>(null);
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const reset = () => {
+    setValues(blankIntakeValues);
+    setFindings("");
+    setSubmitted(null);
+    setDraft(null);
+    setMessage("");
+    setIntakeMethod("guided");
+  };
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    setSubmitted(
+      intakeMethod === "guided" ? values : { stakeholderFindings: findings },
+    );
+  };
+  async function openReview() {
+    if (!submitted) return;
+    setLoading(true);
+    try {
+      const response = await fetch("/api/grc-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stakeholderInput: submitted }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error);
+      setDraft(body.draft);
+    } catch (error) {
+      setMessage(
+        `${error instanceof Error ? error.message : "AI drafting failed."} Continuing with an analyst-ready draft.`,
+      );
+      setDraft(fallback(submitted));
+    } finally {
+      setLoading(false);
+    }
+  }
+  if (draft && submitted) return <Review draft={draft} source={submitted} />;
+  if (submitted)
+    return (
+      <section className="mt-10 rounded-2xl border border-teal-200 bg-white p-8">
+        <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
+          Business Stakeholder
+        </p>
+        <h2 className="mt-2 text-2xl font-semibold">
+          Submitted for GRC Review
+        </h2>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
+          Your business context has been handed to the prototype GRC review
+          workflow. It does not determine the final risk decision.
+        </p>
+        {message && <p className="mt-3 text-sm text-amber-800">{message}</p>}
+        <button
+          className="mt-6 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+          disabled={loading}
+          onClick={openReview}
+        >
+          {loading ? "Preparing review…" : "Open GRC Review"}
+        </button>
+      </section>
+    );
+  return (
+    <form
+      className="mt-10 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+      onSubmit={submit}
+    >
+      <div className="rounded-xl bg-teal-50 p-4 text-sm">
+        <b>Business Stakeholder</b>
+        <br />
+        Share the context you know. GRC analysts - not stakeholders or AI - make
+        the final risk decisions.
+      </div>
+      <div className="mt-5 rounded-xl border border-dashed border-teal-300 bg-teal-50/50 p-4">
+        <p className="text-sm font-semibold">Demo Tools</p>
+        <p className="mt-1 text-xs text-slate-600">
+          Load one of three fictional Pacific Utilities Corporation scenarios.
+          These only populate stakeholder context; no analyst decisions are
+          pre-set.
+        </p>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <select
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+            value={scenarioId}
+            onChange={(event) => setScenarioId(event.target.value)}
+          >
+            {demoScenarios.map((scenario) => (
+              <option key={scenario.id} value={scenario.id}>
+                {scenario.name}
+              </option>
+            ))}
+          </select>
+          <button
+            className="rounded-md bg-teal-800 px-3 py-2 text-xs font-semibold text-white"
+            type="button"
+            onClick={() => {
+              const scenario = demoScenarios.find(
+                (item) => item.id === scenarioId,
+              );
+              if (scenario) {
+                setValues(scenario.values);
+                setIntakeMethod("guided");
+              }
+            }}
+          >
+            Load demo scenario
+          </button>
+          <button
+            className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold"
+            type="button"
+            onClick={reset}
+          >
+            Reset Demo
+          </button>
+        </div>
+      </div>
+      <fieldset className="mt-6">
+        <legend className="text-sm font-semibold">
+          How would you like to provide the information?
+        </legend>
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+          <label className="rounded-lg border p-3 text-sm">
+            <input
+              checked={intakeMethod === "guided"}
+              className="mr-2"
+              name="intake-method"
+              type="radio"
+              onChange={() => setIntakeMethod("guided")}
+            />
+            Answer guided questions
+          </label>
+          <label className="rounded-lg border p-3 text-sm">
+            <input
+              checked={intakeMethod === "findings"}
+              className="mr-2"
+              name="intake-method"
+              type="radio"
+              onChange={() => setIntakeMethod("findings")}
+            />
+            Paste prepared findings
+          </label>
+        </div>
+      </fieldset>
+      {intakeMethod === "guided" ? (
+        <div className="mt-6 space-y-4">
+          {intakeFieldNames.map((name) => (
+            <label className="block" key={name}>
+              <span className="text-sm font-medium">{intakeLabels[name]}</span>
+              <textarea
+                className={`${fieldClass} min-h-20`}
+                value={values[name]}
+                onChange={(event) =>
+                  setValues({ ...values, [name]: event.target.value })
+                }
+              />
+            </label>
+          ))}
+        </div>
+      ) : (
+        <label className="mt-6 block">
+          <span className="text-sm font-medium">
+            Prepared stakeholder findings
+          </span>
+          <span className="mt-1 block text-xs text-slate-600">
+            Paste discovery notes, interview findings, or a business summary.
+            The GRC team will structure and review it.
+          </span>
+          <textarea
+            className={`${fieldClass} min-h-64`}
+            value={findings}
+            onChange={(event) => setFindings(event.target.value)}
+          />
+        </label>
+      )}
+      <button className="mt-6 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white">
+        Submit to GRC Team
+      </button>
+    </form>
+  );
+}
+
+function Review({
+  draft,
+  source,
+}: {
+  draft: GrcDraft;
+  source: Record<string, string>;
+}) {
+  const [review, setReview] = useState(draft);
+  const [likelihood, setLikelihood] = useState<RiskLevel>(
+    toRiskLevel(draft.suggestedLikelihood),
+  );
+  const [impact, setImpact] = useState<RiskLevel>(
+    toRiskLevel(draft.suggestedImpact),
+  );
+  const [rationale, setRationale] = useState(draft.suggestedRiskRationale);
+  const result = calculateRisk(likelihood, impact);
+  const update = (key: keyof GrcDraft, value: string) =>
+    setReview({ ...review, [key]: value });
+  return (
+    <section className="mt-10 space-y-6">
+      <div className="rounded-xl bg-slate-900 p-5 text-white">
+        <b>GRC Analyst Workspace</b>
+        <p className="mt-1 text-sm">
+          Source Information ↓ AI-Generated Draft ↓ Analyst Decision ↓
+          Calculated Risk Result
+        </p>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="font-semibold">SOURCE INFORMATION</h2>
+          {Object.entries(source).map(
+            ([key, value]) =>
+              value && (
+                <div className="mt-4" key={key}>
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    {sourceLabels[key] ?? key}
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap text-sm">{value}</p>
+                </div>
+              ),
+          )}
+        </section>
+        <section className="rounded-2xl border border-teal-200 bg-white p-6">
+          <h2 className="font-semibold">AI-GENERATED DRAFT → ANALYST REVIEW</h2>
+          <p className="mt-1 text-xs text-slate-600">
+            Every AI suggestion is editable and remains advisory until the
+            analyst makes a decision.
+          </p>
+          {(
+            [
+              "asset",
+              "description",
+              "businessOwner",
+              "threat",
+              "vulnerability",
+              "businessImpact",
+              "existingControls",
+            ] as const
+          ).map((key) => (
+            <label className="mt-4 block" key={key}>
+              <span className="text-sm font-medium">{draftLabels[key]}</span>
+              <i className="ml-2 text-xs text-teal-700">AI suggestion</i>
+              <textarea
+                className={`${fieldClass} min-h-16`}
+                value={review[key]}
+                onChange={(event) => update(key, event.target.value)}
+              />
+            </label>
+          ))}
+          <UncertaintyFields review={review} setReview={setReview} />
+        </section>
+      </div>
+      <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <h2 className="font-semibold">
+          Analyst Decision → Calculated Risk Result
+        </h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Likelihood is how plausible the event is; Impact is the business
+          consequence if it happens. The app calculates the score and rating
+          from the analyst’s final selections.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Level
+            label="Final Likelihood"
+            value={likelihood}
+            onChange={setLikelihood}
+          />
+          <Level label="Final Impact" value={impact} onChange={setImpact} />
+        </div>
+        <label className="mt-4 block">
+          <span className="text-sm font-medium">Analyst Rationale</span>
+          <textarea
+            className={`${fieldClass} min-h-16`}
+            value={rationale}
+            onChange={(event) => setRationale(event.target.value)}
+          />
+        </label>
+        <p className="mt-5 rounded-lg bg-slate-900 p-4 text-white">
+          Likelihood {likelihood} × Impact {impact} = Risk Score {result.score}{" "}
+          → {result.rating}
+        </p>
+      </section>
+      <Register
+        review={review}
+        likelihood={likelihood}
+        impact={impact}
+        rationale={rationale}
+        rating={result.rating}
+      />
+    </section>
+  );
+}
+function UncertaintyFields({
+  review,
+  setReview,
+}: {
+  review: GrcDraft;
+  setReview: (draft: GrcDraft) => void;
+}) {
+  return (
+    <>
+      {(["missingInformation", "assumptions", "uncertainties"] as const).map(
+        (key) => (
+          <div className="mt-4" key={key}>
+            <p className="text-sm font-medium">{draftLabels[key]}</p>
+            <div className="mt-2 space-y-2">
+              {review[key].map((item, index) => (
+                <div className="flex gap-2" key={`${key}-${index}`}>
+                  <span className="pt-2 text-sm text-teal-700">
+                    {index + 1}.
+                  </span>
+                  <textarea
+                    aria-label={`${draftLabels[key]} item ${index + 1}`}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    value={item}
+                    onChange={(event) => {
+                      const next = [...review[key]];
+                      next[index] = event.target.value;
+                      setReview({ ...review, [key]: next });
+                    }}
+                  />
+                  <button
+                    className="text-xs font-medium text-slate-600 underline"
+                    type="button"
+                    onClick={() =>
+                      setReview({
+                        ...review,
+                        [key]: review[key].filter(
+                          (_, itemIndex) => itemIndex !== index,
+                        ),
+                      })
+                    }
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              className="mt-2 text-xs font-semibold text-teal-800 underline"
+              type="button"
+              onClick={() =>
+                setReview({ ...review, [key]: [...review[key], ""] })
+              }
+            >
+              Add item
+            </button>
+          </div>
+        ),
+      )}
+    </>
+  );
+}
+function Level({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: RiskLevel;
+  onChange: (value: RiskLevel) => void;
+}) {
+  return (
+    <label>
+      <span className="text-sm font-medium">{label}</span>
+      <select
+        className={fieldClass}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value) as RiskLevel)}
+      >
+        {[1, 2, 3].map((level) => (
+          <option key={level} value={level}>
+            {level} - {level === 1 ? "Low" : level === 2 ? "Medium" : "High"}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+function Register({
+  review,
+  likelihood,
+  impact,
+  rationale,
+  rating,
+}: {
+  review: GrcDraft;
+  likelihood: RiskLevel;
+  impact: RiskLevel;
+  rationale: string;
+  rating: RiskRegisterRecord["riskRating"];
+}) {
+  const { records, addRecord } = useRiskRegister();
+  const [statement, setStatement] = useState(
+    createRiskStatement(
+      review.threat,
+      review.vulnerability,
+      review.businessImpact,
+    ),
+  );
+  const [strategy, setStrategy] =
+    useState<RiskRegisterRecord["treatmentStrategy"]>("Mitigate");
+  const [plan, setPlan] = useState("");
+  const [owner, setOwner] = useState(review.businessOwner);
+  const [date, setDate] = useState(suggestedTargetDate(rating));
+  const [dateEdited, setDateEdited] = useState(false);
+  const [status, setStatus] = useState<RiskRegisterRecord["status"]>("Open");
+  const [suggesting, setSuggesting] = useState(false);
+  const [note, setNote] = useState("");
+  const [done, setDone] = useState(false);
+  const [potentialDuplicate, setPotentialDuplicate] =
+    useState<RiskRegisterRecord | null>(null);
+  const [viewingExisting, setViewingExisting] =
+    useState<RiskRegisterRecord | null>(null);
+  useEffect(() => {
+    if (!dateEdited) setDate(suggestedTargetDate(rating));
+  }, [rating, dateEdited]);
+  async function suggest() {
+    setSuggesting(true);
+    try {
+      const response = await fetch("/api/treatment-suggestion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          asset: review.asset,
+          threat: review.threat,
+          vulnerability: review.vulnerability,
+          businessImpact: review.businessImpact,
+          existingControls: review.existingControls,
+          likelihood,
+          impact,
+          riskRating: rating,
+          treatmentStrategy: strategy,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error);
+      setPlan(cleanTreatmentPlan(body.suggestion));
+      setNote(
+        "AI suggestion loaded. Review and edit it before adding the record.",
+      );
+    } catch (error) {
+      setNote(
+        error instanceof Error
+          ? error.message
+          : "Unable to load an AI suggestion.",
+      );
+    } finally {
+      setSuggesting(false);
+    }
+  }
+  function registerNewRisk() {
+    if (!canAddToRegister(strategy, plan)) {
+      setNote(
+        "A Treatment Action / Plan is required when the strategy is Mitigate.",
+      );
+      return;
+    }
+    const record = createRiskRegisterRecord(
+      {
+        asset: review.asset,
+        businessOwner: review.businessOwner,
+        threat: review.threat,
+        vulnerability: review.vulnerability,
+        businessImpact: review.businessImpact,
+        existingControls: review.existingControls,
+        likelihood,
+        impact,
+        rationale,
+      },
+      records,
+    );
+    Object.assign(record, {
+      riskStatement: statement,
+      treatmentStrategy: strategy,
+      treatmentPlan: cleanTreatmentPlan(plan),
+      riskOwner: owner,
+      targetDate: date,
+      status,
+    });
+    addRecord(record);
+    setDone(true);
+  }
+  function add() {
+    if (!canAddToRegister(strategy, plan)) {
+      setNote(
+        "A Treatment Action / Plan is required when the strategy is Mitigate.",
+      );
+      return;
+    }
+    const duplicate = findPotentialDuplicate(
+      {
+        asset: review.asset,
+        businessOwner: review.businessOwner,
+        threat: review.threat,
+        vulnerability: review.vulnerability,
+        businessImpact: review.businessImpact,
+      },
+      records,
+    );
+    if (duplicate) { setPotentialDuplicate(duplicate); return; }
+    registerNewRisk();
+  }
+  if (done)
+    return (
+      <section className="rounded-2xl border border-teal-200 bg-white p-6">
+        <b>Added to Risk Register</b>
+        <p className="mt-2 text-sm">
+          The final analyst-reviewed record is available only in this browser
+          session.
+        </p>
+        <Link
+          className="mt-4 inline-block rounded bg-slate-900 px-4 py-2 text-sm text-white"
+          href="/risk-register"
+        >
+          Open Risk Register
+        </Link>
+      </section>
+    );
+  return (
+    <section className="rounded-2xl border border-teal-200 bg-white p-6">
+      <h2 className="font-semibold">Add to Risk Register</h2>
+      {potentialDuplicate && !viewingExisting && (
+        <section className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
+          <h3 className="font-semibold">Potential duplicate risk identified</h3>
+          <p className="mt-1 text-sm">This assessment appears similar to an existing Risk Register record. Review the existing risk before creating another record.</p>
+          <div className="mt-3 rounded-lg bg-white p-3 text-sm"><b>{potentialDuplicate.id}</b> - {potentialDuplicate.asset}<br />{potentialDuplicate.riskStatement}<br /><span className="text-slate-600">{potentialDuplicate.riskRating} - Score {potentialDuplicate.riskScore} | Owner: {potentialDuplicate.riskOwner || "-"} | {potentialDuplicate.treatmentStrategy} | {potentialDuplicate.status}</span></div>
+          <div className="mt-3 flex gap-3"><button className="rounded border border-slate-300 px-3 py-2 text-sm font-semibold" type="button" onClick={() => setViewingExisting(potentialDuplicate)}>View Existing Risk</button><button className="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white" type="button" onClick={registerNewRisk}>Continue as New Risk</button></div>
+        </section>
+      )}
+      {viewingExisting && <section className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex justify-between"><h3 className="font-semibold">Existing Risk: {viewingExisting.id}</h3><button className="text-sm underline" type="button" onClick={() => setViewingExisting(null)}>Return to pending assessment</button></div><p className="mt-3 text-sm"><b>Asset:</b> {viewingExisting.asset}</p><p className="mt-2 text-sm"><b>Risk Statement:</b> {viewingExisting.riskStatement}</p><p className="mt-2 text-sm"><b>Risk Rating:</b> {viewingExisting.riskRating} - Score {viewingExisting.riskScore}</p><p className="mt-2 text-sm"><b>Risk Owner:</b> {viewingExisting.riskOwner || "-"}</p><p className="mt-2 text-sm"><b>Treatment:</b> {viewingExisting.treatmentStrategy} | {viewingExisting.status}</p></section>}
+      <label className="mt-4 block">
+        <span className="text-sm font-medium">Risk Statement</span>
+        <textarea
+          className={`${fieldClass} min-h-16`}
+          value={statement}
+          onChange={(event) => setStatement(event.target.value)}
+        />
+      </label>
+      <label className="mt-3 block">
+        <span className="text-sm font-medium">Treatment Strategy</span>
+        <select
+          className={fieldClass}
+          value={strategy}
+          onChange={(event) =>
+            setStrategy(
+              event.target.value as RiskRegisterRecord["treatmentStrategy"],
+            )
+          }
+        >
+          {treatmentStrategies.map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </label>
+      <label className="mt-3 block">
+        <span className="text-sm font-medium">Treatment Action / Plan</span>
+        <i className="ml-2 text-xs text-teal-700">
+          AI suggestion, analyst editable
+        </i>
+        <textarea
+          className={`${fieldClass} min-h-28`}
+          value={plan}
+          onChange={(event) => setPlan(cleanTreatmentPlan(event.target.value))}
+        />
+      </label>
+      <button
+        className="mt-3 rounded border px-3 py-2 text-sm"
+        type="button"
+        disabled={suggesting}
+        onClick={suggest}
+      >
+        {suggesting ? "Generating…" : "Suggest Treatment Plan"}
+      </button>
+      {note && <p className="mt-2 text-sm text-slate-600">{note}</p>}
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <label>
+          <span className="text-sm font-medium">Risk Owner</span>
+          <input
+            className={fieldClass}
+            value={owner}
+            onChange={(event) => setOwner(event.target.value)}
+          />
+        </label>
+        <label>
+          <span className="text-sm font-medium">Target Date</span>
+          <span className="block text-xs text-slate-500">
+            Suggested from the final {rating} rating; the analyst may override
+            it.
+          </span>
+          <input
+            className={fieldClass}
+            type="date"
+            value={date}
+            onChange={(event) => {
+              setDateEdited(true);
+              setDate(event.target.value);
+            }}
+          />
+        </label>
+      </div>
+      <label className="mt-3 block">
+        <span className="text-sm font-medium">Status</span>
+        <select
+          className={fieldClass}
+          value={status}
+          onChange={(event) =>
+            setStatus(event.target.value as RiskRegisterRecord["status"])
+          }
+        >
+          {riskStatuses.map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </label>
+      <button
+        className="mt-5 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white"
+        type="button"
+        onClick={add}
+      >
+        Add to Risk Register
+      </button>
+    </section>
+  );
+}

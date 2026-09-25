@@ -10,6 +10,11 @@ const treatmentDays: Record<RiskRating, number> = { Critical: 14, High: 30, Medi
 
 export function nextRiskId(records: Pick<RiskRegisterRecord, "id">[]) { return `RISK-${String(records.length + 1).padStart(3, "0")}`; }
 export function appendRiskRecord(records: RiskRegisterRecord[], record: RiskRegisterRecord) { return records.some(({ id }) => id === record.id) ? records : [...records, record]; }
+export function normalizeRiskText(value: string) { return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim(); }
+export function findPotentialDuplicate(assessment: Pick<ReviewedAssessment, "asset" | "businessOwner" | "threat" | "vulnerability" | "businessImpact">, records: RiskRegisterRecord[]) {
+  const fields = ["asset", "businessOwner", "threat", "vulnerability", "businessImpact"] as const;
+  return records.find((record) => normalizeRiskText(record.asset) === normalizeRiskText(assessment.asset) && fields.filter((field) => normalizeRiskText(record[field]) === normalizeRiskText(assessment[field])).length >= 3);
+}
 function sentenceFragment(value: string) {
   const trimmed = value.trim().replace(/[.,;:!?\s]+$/, "");
   return trimmed ? trimmed.charAt(0).toLowerCase() + trimmed.slice(1) : "";

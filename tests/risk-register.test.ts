@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { appendRiskRecord, canAddToRegister, cleanTreatmentPlan, createRiskRegisterRecord, createRiskStatement, nextRiskId, suggestedTargetDate } from "../lib/grc/risk-register.ts";
+import { appendRiskRecord, canAddToRegister, cleanTreatmentPlan, createRiskRegisterRecord, createRiskStatement, findPotentialDuplicate, nextRiskId, normalizeRiskText, suggestedTargetDate } from "../lib/grc/risk-register.ts";
 
 const reviewed = { asset: "Payments service", businessOwner: "Finance", threat: "Unauthorized access", vulnerability: "Weak access reviews", businessImpact: "Payment data could be exposed", existingControls: "Quarterly reviews", likelihood: 2 as const, impact: 3 as const, rationale: "Analyst reviewed evidence." };
 
@@ -53,3 +53,14 @@ test("appends independent sequential risk records without removing the portfolio
   assert.deepEqual(portfolio.map((record) => record.asset), ["Payments service", "Network service", "AI service"]);
   assert.equal(appendRiskRecord(portfolio, second).length, 3);
 });
+
+test("flags an obvious normalized potential duplicate before it is registered", () => {
+  const original = createRiskRegisterRecord(reviewed, []);
+  const duplicate = { ...reviewed, asset: "  PAYMENTS service! ", threat: "unauthorized   access.", vulnerability: "Weak access reviews", businessImpact: "Payment data could be exposed" };
+  assert.equal(normalizeRiskText(duplicate.asset), "payments service");
+  assert.equal(findPotentialDuplicate(duplicate, [original])?.id, "RISK-001");
+  assert.equal(findPotentialDuplicate({ ...duplicate, asset: "Network service", threat: "Network outage" }, [original]), undefined);
+  assert.equal(portfolioSummaryForTest([original]).Total, 1);
+});
+
+function portfolioSummaryForTest(records: ReturnType<typeof createRiskRegisterRecord>[]) { return { Total: records.length }; }
