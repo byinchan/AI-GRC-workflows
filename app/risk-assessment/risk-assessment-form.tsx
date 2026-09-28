@@ -18,7 +18,7 @@ import {
   cleanTreatmentPlan,
   createRiskRegisterRecord,
   createRiskStatement,
-  findPotentialDuplicate,
+  findRegistrationDuplicate,
   riskStatuses,
   RiskRegisterRecord,
   suggestedTargetDate,
@@ -387,6 +387,7 @@ export function Review({
         impact={impact}
         rationale={rationale}
         rating={result.rating}
+        source={source}
         submissionId={submissionId}
       />
     </section>
@@ -485,6 +486,7 @@ function Register({
   impact,
   rationale,
   rating,
+  source,
   submissionId,
 }: {
   review: GrcDraft;
@@ -492,9 +494,10 @@ function Register({
   impact: RiskLevel;
   rationale: string;
   rating: RiskRegisterRecord["riskRating"];
+  source: Record<string, string>;
   submissionId?: string;
 }) {
-  const { records, addRecord, markSubmissionRegistered } = useRiskRegister();
+  const { records, stakeholderSubmissions, addRecord, markSubmissionRegistered } = useRiskRegister();
   const [statement, setStatement] = useState(
     createRiskStatement(
       review.threat,
@@ -593,7 +596,8 @@ function Register({
       );
       return;
     }
-    const duplicate = findPotentialDuplicate(
+    const duplicate = findRegistrationDuplicate(
+      source,
       {
         asset: review.asset,
         businessOwner: review.businessOwner,
@@ -601,6 +605,7 @@ function Register({
         vulnerability: review.vulnerability,
         businessImpact: review.businessImpact,
       },
+      stakeholderSubmissions,
       records,
     );
     if (duplicate) { setPotentialDuplicate(duplicate); return; }

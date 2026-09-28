@@ -1,5 +1,6 @@
 import { calculateRisk } from "./risk.ts";
 import type { RiskLevel, RiskRating } from "./risk.ts";
+import { normalizeStakeholderRisk } from "../stakeholder-similarity.ts";
 
 export const treatmentStrategies = ["Mitigate", "Accept", "Avoid", "Transfer"] as const;
 export const riskStatuses = ["Open", "Treatment Planned", "In Progress", "Accepted", "Closed"] as const;
@@ -14,6 +15,38 @@ export function normalizeRiskText(value: string) { return value.toLowerCase().re
 export function findPotentialDuplicate(assessment: Pick<ReviewedAssessment, "asset" | "businessOwner" | "threat" | "vulnerability" | "businessImpact">, records: RiskRegisterRecord[]) {
   const fields = ["asset", "businessOwner", "threat", "vulnerability", "businessImpact"] as const;
   return records.find((record) => normalizeRiskText(record.asset) === normalizeRiskText(assessment.asset) && fields.filter((field) => normalizeRiskText(record[field]) === normalizeRiskText(assessment[field])).length >= 3);
+}
+type RegisteredStakeholderSubmission = {
+  source: Record<string, string>;
+  status: "Awaiting Review" | "Registered";
+  riskRecordId?: string;
+};
+
+export function findStakeholderSourceDuplicate(
+  source: Record<string, string>,
+  submissions: RegisteredStakeholderSubmission[],
+  records: RiskRegisterRecord[],
+) {
+  if (!Object.values(source).some((value) => normalizeRiskText(value))) return undefined;
+  const fingerprint = normalizeStakeholderRisk(source);
+  const matchedSubmission = submissions.find(
+    (submission) =>
+      submission.status === "Registered" &&
+      submission.riskRecordId &&
+      normalizeStakeholderRisk(submission.source) === fingerprint,
+  );
+  return matchedSubmission
+    ? records.find((record) => record.id === matchedSubmission.riskRecordId)
+    : undefined;
+}
+
+export function findRegistrationDuplicate(
+  source: Record<string, string>,
+  assessment: Pick<ReviewedAssessment, "asset" | "businessOwner" | "threat" | "vulnerability" | "businessImpact">,
+  submissions: RegisteredStakeholderSubmission[],
+  records: RiskRegisterRecord[],
+) {
+  return findStakeholderSourceDuplicate(source, submissions, records) ?? findPotentialDuplicate(assessment, records);
 }
 function sentenceFragment(value: string) {
   const trimmed = value.trim().replace(/[.,;:!?\s]+$/, "");
