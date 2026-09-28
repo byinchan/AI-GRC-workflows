@@ -80,6 +80,7 @@ function fallback(values: Record<string, string>): GrcDraft {
 }
 
 export function RiskAssessmentForm() {
+  const { stakeholderSubmissions, addStakeholderSubmission } = useRiskRegister();
   const [intakeMethod, setIntakeMethod] = useState<"guided" | "findings">(
     "guided",
   );
@@ -102,9 +103,10 @@ export function RiskAssessmentForm() {
   };
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    setSubmitted(
-      intakeMethod === "guided" ? values : { stakeholderFindings: findings },
-    );
+    const nextSubmission =
+      intakeMethod === "guided" ? values : { stakeholderFindings: findings };
+    setSubmitted(nextSubmission);
+    addStakeholderSubmission(nextSubmission);
   };
   async function openReview() {
     if (!submitted) return;
@@ -142,13 +144,26 @@ export function RiskAssessmentForm() {
           workflow. It does not determine the final risk decision.
         </p>
         {message && <p className="mt-3 text-sm text-amber-800">{message}</p>}
-        <button
-          className="mt-6 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-          disabled={loading}
-          onClick={openReview}
-        >
-          {loading ? "Preparing review…" : "Open GRC Review"}
-        </button>
+        <p className="mt-3 text-sm text-slate-600">
+          {stakeholderSubmissions.length} risk{stakeholderSubmissions.length === 1 ? "" : "s"} submitted in this browser session.
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            className="rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900"
+            onClick={reset}
+            type="button"
+          >
+            Add Another Risk
+          </button>
+          <button
+            className="rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+            disabled={loading}
+            onClick={openReview}
+            type="button"
+          >
+            {loading ? "Preparing review…" : "Open GRC Review"}
+          </button>
+        </div>
       </section>
     );
   return (
