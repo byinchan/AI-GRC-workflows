@@ -5,15 +5,25 @@ const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 842;
 const MARGIN = 42;
 const BOTTOM = 48;
-const BODY_LEADING = 13;
+const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+const BODY_SIZE = 10;
+const BODY_LEADING = 12;
+const BODY_COLUMNS = Math.floor(CONTENT_WIDTH / 5.15);
+const SECTION_SIZE = 14;
+const SECTION_LEADING = 17;
+const ITEM_TITLE_SIZE = 12;
+const ITEM_TITLE_LEADING = 14;
+const SECTION_BEFORE = 9;
+const SECTION_AFTER = 4;
+const ITEM_GAP = 7;
 const esc = (value: string) => value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/[^\x20-\x7E]/g, " ");
 const heatColor = { Low: "0.82 0.98 0.90", Medium: "1 0.95 0.78", High: "1 0.93 0.84", Critical: "0.99 0.89 0.89" } as const;
 type ReportModel = ReturnType<typeof executiveReportModel>;
 type Page = { commands: string[]; y: number };
 type CollectionItem = { title?: string; action?: string; analysis?: string; rationale: string; relatedRiskIds: string[] };
 
-function wrap(text: string, width = 88) { return text.replace(/\s+/g, " ").trim().split(" ").reduce<string[]>((lines, word) => { const previous = lines.at(-1) ?? ""; if (`${previous} ${word}`.trim().length > width) lines.push(word); else lines[lines.length - 1] = `${previous} ${word}`.trim(); return lines; }, [""]).filter(Boolean); }
-function paragraphs(text: string) { return text.trim().split(/\n\s*\n/).map((paragraph) => wrap(paragraph)).filter((lines) => lines.length); }
+function wrap(text: string, width = BODY_COLUMNS) { return text.replace(/\s+/g, " ").trim().split(" ").reduce<string[]>((lines, word) => { const previous = lines.at(-1) ?? ""; if (`${previous} ${word}`.trim().length > width) lines.push(word); else lines[lines.length - 1] = `${previous} ${word}`.trim(); return lines; }, [""]).filter(Boolean); }
+function paragraphs(text: string) { return text.trim().split(/\n\s*\n/).map((paragraph) => wrap(paragraph, BODY_COLUMNS)).filter((lines) => lines.length); }
 function text(value: string, x: number, y: number, size: number, font = "F1") { return `BT /${font} ${size} Tf ${x} ${y} Td (${esc(value)}) Tj ET`; }
 
 function heatMapDrawing(model: ReportModel) {
@@ -31,27 +41,27 @@ export function executivePdfDocument(model: ReportModel, analysis: ExecutiveAnal
   const newPage = () => pages.push({ commands: [], y: 800 });
   const available = () => page().y - BOTTOM;
   const ensure = (height: number) => { if (available() < height) newPage(); };
-  const addLine = (value: string, size = 11, font = "F1", leading = BODY_LEADING) => { ensure(leading); page().commands.push(text(value, MARGIN, page().y, size, font)); page().y -= leading; };
+  const addLine = (value: string, size = BODY_SIZE, font = "F1", leading = BODY_LEADING, x = MARGIN) => { ensure(leading); page().commands.push(text(value, x, page().y, size, font)); page().y -= leading; };
   const gap = (height: number) => { page().y -= height; };
-  const heading = (value: string, minimumContentHeight: number) => { ensure(20 + minimumContentHeight); gap(5); addLine(value, 14, "F2", 17); gap(2); };
+  const heading = (value: string, minimumContentHeight: number) => { ensure(SECTION_BEFORE + SECTION_LEADING + SECTION_AFTER + minimumContentHeight); gap(SECTION_BEFORE); addLine(value, SECTION_SIZE, "F2", SECTION_LEADING); gap(SECTION_AFTER); };
   const narrative = (value: string) => { const parts = paragraphs(value); parts.forEach((lines, index) => { lines.forEach((line) => addLine(line)); if (index < parts.length - 1) gap(5); }); };
   const itemHeight = (item: CollectionItem) => {
     const title = item.title ?? item.action ?? "";
     const body = item.analysis ?? item.rationale;
-    return wrap(title).length * BODY_LEADING + wrap(body).length * 12 + (item.relatedRiskIds.length ? 11 : 0) + 8;
+    return wrap(title, 98).length * ITEM_TITLE_LEADING + wrap(body, 100).length * BODY_LEADING + (item.relatedRiskIds.length ? 11 : 0) + ITEM_GAP;
   };
-  const collection = (title: string, items: CollectionItem[], numbered = false) => {
+  const collection = (title: string, items: CollectionItem[]) => {
     const firstHeight = items.length ? itemHeight(items[0]) : BODY_LEADING;
     heading(title, firstHeight + 5);
-    if (!items.length) { addLine("No specific items identified from current approved risk records.", 10); gap(4); return; }
+    if (!items.length) { addLine("No specific items identified from current approved risk records."); gap(ITEM_GAP); return; }
     items.forEach((item, index) => {
       const height = itemHeight(item);
       if (available() < height && height <= PAGE_HEIGHT - MARGIN - BOTTOM) newPage();
-      const titleText = `${numbered ? `${index + 1}.` : "-"} ${item.title ?? item.action ?? ""}`;
-      wrap(titleText, 84).forEach((line) => addLine(line, 11, "F2"));
-      wrap(item.analysis ?? item.rationale, 88).forEach((line) => addLine(line, 10, "F1", 12));
-      if (item.relatedRiskIds.length) addLine(`Related risks: ${item.relatedRiskIds.join(", ")}`, 9, "F1", 11);
-      gap(4);
+      const titleText = `${index + 1}. ${item.title ?? item.action ?? ""}`;
+      wrap(titleText, 98).forEach((line) => addLine(line, ITEM_TITLE_SIZE, "F2", ITEM_TITLE_LEADING));
+      wrap(item.analysis ?? item.rationale, 100).forEach((line) => addLine(line, BODY_SIZE, "F1", BODY_LEADING, MARGIN + 8));
+      if (item.relatedRiskIds.length) addLine(`Related risks: ${item.relatedRiskIds.join(", ")}`, 9, "F1", 11, MARGIN + 8);
+      gap(ITEM_GAP);
     });
   };
 
@@ -64,8 +74,8 @@ export function executivePdfDocument(model: ReportModel, analysis: ExecutiveAnal
   heading("Assessment Uncertainty", BODY_LEADING * 3); narrative(analysis.assessmentUncertainty); gap(3);
   collection("Management Priorities", analysis.managementPriorities);
   collection("Decisions / Escalations / Validation Required", analysis.decisionsAndEscalations);
-  collection("Next Steps", analysis.nextSteps, true);
-  const governance = wrap("Report governance: Ratings, counts and Heat Map positions reflect analyst-approved assessments and deterministic scoring. Narrative analysis is AI-assisted and human-reviewed.", 108);
+  collection("Next Steps", analysis.nextSteps);
+  const governance = wrap("Report governance: Ratings, counts and Heat Map positions reflect analyst-approved assessments and deterministic scoring. Narrative analysis is AI-assisted and human-reviewed.", BODY_COLUMNS);
   ensure(governance.length * 11 + 8); gap(4); governance.forEach((line) => addLine(line, 9, "F1", 11));
 
   pages.forEach((current, index) => current.commands.push(text(`Page ${index + 1} of ${pages.length}`, PAGE_WIDTH - MARGIN - 58, 30, 9)));
