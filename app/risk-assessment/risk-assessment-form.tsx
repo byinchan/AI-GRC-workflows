@@ -55,7 +55,7 @@ const draftLabels: Record<string, string> = {
 const fieldClass =
   "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
 
-function fallback(values: Record<string, string>): GrcDraft {
+export function fallback(values: Record<string, string>): GrcDraft {
   const findings = values.stakeholderFindings ?? "";
   return {
     asset: values.assessmentSubject || "Requires analyst review",
@@ -155,14 +155,7 @@ export function RiskAssessmentForm() {
           >
             Add Another Risk
           </button>
-          <button
-            className="rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-            disabled={loading}
-            onClick={openReview}
-            type="button"
-          >
-            {loading ? "Preparing review…" : "Open GRC Review"}
-          </button>
+          <Link className="rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white" href="/grc-review">Open GRC Review</Link>
         </div>
       </section>
     );
@@ -285,12 +278,14 @@ export function RiskAssessmentForm() {
   );
 }
 
-function Review({
+export function Review({
   draft,
   source,
+  submissionId,
 }: {
   draft: GrcDraft;
   source: Record<string, string>;
+  submissionId?: string;
 }) {
   const [review, setReview] = useState(draft);
   const [likelihood, setLikelihood] = useState<RiskLevel>(
@@ -393,6 +388,7 @@ function Review({
         impact={impact}
         rationale={rationale}
         rating={result.rating}
+        submissionId={submissionId}
       />
     </section>
   );
@@ -490,14 +486,16 @@ function Register({
   impact,
   rationale,
   rating,
+  submissionId,
 }: {
   review: GrcDraft;
   likelihood: RiskLevel;
   impact: RiskLevel;
   rationale: string;
   rating: RiskRegisterRecord["riskRating"];
+  submissionId?: string;
 }) {
-  const { records, addRecord } = useRiskRegister();
+  const { records, addRecord, markSubmissionRegistered } = useRiskRegister();
   const [statement, setStatement] = useState(
     createRiskStatement(
       review.threat,
@@ -586,6 +584,7 @@ function Register({
       status,
     });
     addRecord(record);
+    if (submissionId) markSubmissionRegistered(submissionId, record.id);
     setDone(true);
   }
   function add() {
@@ -622,6 +621,7 @@ function Register({
         >
           Open Risk Register
         </Link>
+        {submissionId && <Link className="ml-3 inline-block rounded border border-slate-300 px-4 py-2 text-sm" href="/grc-review">Back to GRC Review</Link>}
       </section>
     );
   return (
