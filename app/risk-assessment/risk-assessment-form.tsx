@@ -11,6 +11,7 @@ import {
   IntakeValues,
 } from "@/lib/demo-scenarios";
 import { GrcDraft } from "@/lib/grc-assessment";
+import { findExactStakeholderMatch } from "@/lib/stakeholder-similarity";
 import { calculateRisk, RiskLevel, toRiskLevel } from "@/lib/grc/risk";
 import {
   canAddToRegister,
@@ -93,7 +94,7 @@ export function RiskAssessmentForm() {
   const [draft, setDraft] = useState<GrcDraft | null>(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [similarity, setSimilarity] = useState<{ matchingSubmissionId: string; rationale: string } | null>(null);
+  const [similarity, setSimilarity] = useState<{ matchingSubmissionId: string; rationale: string } | null>(null); const [similarityUnavailable, setSimilarityUnavailable] = useState(false);
   const reset = () => {
     setValues(blankIntakeValues);
     setFindings("");
@@ -125,6 +126,7 @@ export function RiskAssessmentForm() {
       setLoading(false);
     }
   }
+  if (similarityUnavailable) return <section className="mt-10 rounded-2xl border border-amber-300 bg-white p-8"><h2 className="text-2xl font-semibold">Similarity check unavailable</h2><p className="mt-2 text-sm">We could not check this submission against your previous submissions for potential overlap.</p><div className="mt-5 flex gap-3"><button className="rounded border px-4 py-2 text-sm" type="button" onClick={() => { setSimilarityUnavailable(false); }}>Try Again</button><button className="rounded bg-slate-900 px-4 py-2 text-sm text-white" type="button" onClick={() => finalizeSubmission(intakeMethod === "guided" ? values : { stakeholderFindings: findings })}>Submit Anyway</button></div></section>;
   if (similarity) { const existing = stakeholderSubmissions.find((item) => item.id === similarity.matchingSubmissionId); return <section className="mt-10 rounded-2xl border border-amber-300 bg-white p-8"><h2 className="text-2xl font-semibold">Potentially similar submission identified</h2><p className="mt-2 text-sm text-slate-600">This risk appears substantially similar to a risk already submitted in this session. Review the existing submission before continuing to avoid creating a duplicate.</p><p className="mt-3 text-sm"><b>Why it may overlap:</b> {similarity.rationale}</p>{existing && <div className="mt-4 rounded-lg bg-slate-50 p-4 text-sm"><b>{existing.source.assessmentSubject || "Prepared stakeholder findings"}</b><p className="mt-1">{existing.source.identifiedConcern || existing.source.stakeholderFindings}</p></div>}<div className="mt-5 flex gap-3"><Link className="rounded border border-slate-300 px-4 py-2 text-sm" href={`/grc-review/`}>Review Existing Submission</Link><button className="rounded bg-slate-900 px-4 py-2 text-sm text-white" type="button" onClick={() => finalizeSubmission(intakeMethod === "guided" ? values : { stakeholderFindings: findings })}>Submit Anyway</button><button className="text-sm underline" type="button" onClick={() => setSimilarity(null)}>Return to current draft</button></div></section>; }
   if (draft && submitted) return <Review draft={draft} source={submitted} />;
   if (submitted)
