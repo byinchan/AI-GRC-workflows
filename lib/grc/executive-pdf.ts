@@ -16,6 +16,8 @@ const ITEM_TITLE_LEADING = 14;
 const SECTION_BEFORE = 9;
 const SECTION_AFTER = 4;
 const ITEM_GAP = 7;
+const FOOTER_PAGE_NUMBER_Y = 30;
+const FOOTER_GOVERNANCE_BOTTOM_Y = 56;
 const esc = (value: string) => value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/[^\x20-\x7E]/g, " ");
 const heatColor = { Low: "0.82 0.98 0.90", Medium: "1 0.95 0.78", High: "1 0.93 0.84", Critical: "0.99 0.89 0.89" } as const;
 type ReportModel = ReturnType<typeof executiveReportModel>;
@@ -76,9 +78,10 @@ export function executivePdfDocument(model: ReportModel, analysis: ExecutiveAnal
   collection("Decisions / Escalations / Validation Required", analysis.decisionsAndEscalations);
   collection("Next Steps", analysis.nextSteps);
   const governance = wrap("Report governance: Ratings, counts and Heat Map positions reflect analyst-approved assessments and deterministic scoring. Narrative analysis is AI-assisted and human-reviewed.", BODY_COLUMNS);
-  ensure(governance.length * 11 + 8); gap(4); governance.forEach((line) => addLine(line, 9, "F1", 11));
+  const governanceStartY = FOOTER_GOVERNANCE_BOTTOM_Y + (governance.length - 1) * 11;
+  pages.at(-1)!.commands.push(...governance.map((line, index) => text(line, MARGIN, governanceStartY - index * 11, 9)));
 
-  pages.forEach((current, index) => current.commands.push(text(`Page ${index + 1} of ${pages.length}`, PAGE_WIDTH - MARGIN - 58, 30, 9)));
+  pages.forEach((current, index) => current.commands.push(text(`Page ${index + 1} of ${pages.length}`, PAGE_WIDTH - MARGIN - 58, FOOTER_PAGE_NUMBER_Y, 9)));
   const objects: string[] = ["<< /Type /Catalog /Pages 2 0 R >>", `<< /Type /Pages /Kids [${pages.map((_, index) => `${5 + index * 2} 0 R`).join(" ")}] /Count ${pages.length} >>`, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>"];
   pages.forEach((current, index) => { const content = current.commands.join("\n"); objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${6 + index * 2} 0 R >>`, `<< /Length ${content.length} >>\nstream\n${content}\nendstream`); });
   let output = "%PDF-1.4\n"; const offsets = [0]; objects.forEach((object, index) => { offsets.push(output.length); output += `${index + 1} 0 obj\n${object}\nendobj\n`; }); const start = output.length; output += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.slice(1).map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`).join("")}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${start}\n%%EOF`;
