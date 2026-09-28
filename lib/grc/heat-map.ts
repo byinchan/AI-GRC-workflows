@@ -2,6 +2,8 @@ import { calculateRisk } from "./risk.ts";
 import type { RiskLevel, RiskRating } from "./risk.ts";
 import type { RiskRegisterRecord } from "./risk-register.ts";
 
+export const heatMapSeverityTone = { Low: "border-emerald-300 bg-emerald-50 text-emerald-950", Medium: "border-amber-300 bg-amber-50 text-amber-950", High: "border-orange-300 bg-orange-50 text-orange-950", Critical: "border-red-400 bg-red-50 text-red-950" } as const;
+
 export const riskLevels: Array<{ value: RiskLevel; label: string }> = [
   { value: 1, label: "1 Low" },
   { value: 2, label: "2 Medium" },
