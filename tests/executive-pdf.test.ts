@@ -1,0 +1,12 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { executivePdfDocument } from "../lib/grc/executive-pdf.ts";
+import { executiveReportModel } from "../lib/grc/executive-report.ts";
+import type { ExecutiveAnalysis } from "../lib/grc/executive-analysis.ts";
+import type { RiskRegisterRecord } from "../lib/grc/risk-register.ts";
+
+const records: RiskRegisterRecord[] = [1, 2, 3].map((risk, index) => ({ id: `RISK-00${risk}`, asset: `Service ${risk}`, businessOwner: "Operations", riskStatement: `Risk statement ${risk}`, threat: "Service disruption", vulnerability: "Limited recovery evidence", businessImpact: "Customer service disruption", existingControls: "Monitoring", likelihood: 3, impact: index === 0 ? 3 : 2, riskScore: index === 0 ? 9 : 6, riskRating: index === 0 ? "Critical" : "High", treatmentStrategy: "Mitigate", treatmentPlan: "Validate recovery arrangements", riskOwner: "Operations", targetDate: "2026-10-01", status: "Open", rationale: "Evidence requires validation" }));
+const prose = "The approved portfolio concentrates exposure in service continuity and recovery assurance. The combination of limited recovery evidence and shared operational reliance means management should prioritize validating the control environment before relying on existing safeguards.";
+const analysis: ExecutiveAnalysis = { overallRiskPosture: prose, keyRiskThemes: [{ title: "Shared continuity exposure", analysis: prose, relatedRiskIds: ["RISK-001", "RISK-002", "RISK-003"] }], materialExposure: prose, interdependencies: prose, assessmentUncertainty: prose, managementPriorities: [{ title: "Validate recovery evidence", rationale: prose, relatedRiskIds: ["RISK-001", "RISK-002", "RISK-003"] }], decisionsAndEscalations: [], nextSteps: [{ action: "Confirm recovery capability", rationale: prose, relatedRiskIds: ["RISK-001", "RISK-002", "RISK-003"] }] };
+
+test("creates a compact, valid executive PDF with the visual heat map", () => { const pdf = executivePdfDocument(executiveReportModel(records, new Date("2026-09-28T12:00:00Z")), analysis); assert.ok(pdf.startsWith("%PDF-1.4")); assert.equal((pdf.match(/\/Type \/Page /g) ?? []).length, 2); assert.match(pdf, /Risk Heat Map/); assert.match(pdf, /0\.99 0\.89 0\.89 rg/); assert.match(pdf, /Page 1 of 2/); assert.match(pdf, /Page 2 of 2/); });
