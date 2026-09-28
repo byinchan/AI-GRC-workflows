@@ -93,6 +93,7 @@ export function RiskAssessmentForm() {
   const [draft, setDraft] = useState<GrcDraft | null>(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [similarity, setSimilarity] = useState<{ matchingSubmissionId: string; rationale: string } | null>(null);
   const reset = () => {
     setValues(blankIntakeValues);
     setFindings("");
@@ -101,13 +102,8 @@ export function RiskAssessmentForm() {
     setMessage("");
     setIntakeMethod("guided");
   };
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    const nextSubmission =
-      intakeMethod === "guided" ? values : { stakeholderFindings: findings };
-    setSubmitted(nextSubmission);
-    addStakeholderSubmission(nextSubmission);
-  };
+  const finalizeSubmission = (nextSubmission: Record<string, string>) => { setSubmitted(nextSubmission); addStakeholderSubmission(nextSubmission); setSimilarity(null); };
+  const submit = async (event: FormEvent) => { event.preventDefault(); const nextSubmission = intakeMethod === "guided" ? values : { stakeholderFindings: findings }; if (!stakeholderSubmissions.length) return finalizeSubmission(nextSubmission); try { const response = await fetch("/api/stakeholder-similarity", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidate: nextSubmission, existing: stakeholderSubmissions.map(({ id, source }) => ({ id, source })) }) }); const result = await response.json(); if (result.potentiallySimilar && result.matchingSubmissionId) return setSimilarity({ matchingSubmissionId: result.matchingSubmissionId, rationale: result.rationale }); } catch {} finalizeSubmission(nextSubmission); };
   async function openReview() {
     if (!submitted) return;
     setLoading(true);
@@ -129,6 +125,7 @@ export function RiskAssessmentForm() {
       setLoading(false);
     }
   }
+  if (similarity) { const existing = stakeholderSubmissions.find((item) => item.id === similarity.matchingSubmissionId); return <section className="mt-10 rounded-2xl border border-amber-300 bg-white p-8"><h2 className="text-2xl font-semibold">Potentially similar submission identified</h2><p className="mt-2 text-sm text-slate-600">This risk appears substantially similar to a risk already submitted in this session. Review the existing submission before continuing to avoid creating a duplicate.</p><p className="mt-3 text-sm"><b>Why it may overlap:</b> {similarity.rationale}</p>{existing && <div className="mt-4 rounded-lg bg-slate-50 p-4 text-sm"><b>{existing.source.assessmentSubject || "Prepared stakeholder findings"}</b><p className="mt-1">{existing.source.identifiedConcern || existing.source.stakeholderFindings}</p></div>}<div className="mt-5 flex gap-3"><Link className="rounded border border-slate-300 px-4 py-2 text-sm" href={`/grc-review/`}>Review Existing Submission</Link><button className="rounded bg-slate-900 px-4 py-2 text-sm text-white" type="button" onClick={() => finalizeSubmission(intakeMethod === "guided" ? values : { stakeholderFindings: findings })}>Submit Anyway</button><button className="text-sm underline" type="button" onClick={() => setSimilarity(null)}>Return to current draft</button></div></section>; }
   if (draft && submitted) return <Review draft={draft} source={submitted} />;
   if (submitted)
     return (
