@@ -1,28 +1,34 @@
 # AI-Assisted GRC Risk Management Workflow
 
-An independent portfolio project exploring how AI can reduce administrative work in a GRC risk workflow while preserving human accountability, deterministic methodology, and traceability. It is designed around a practical question: where should AI assist GRC work, and where should analyst judgment or application logic remain authoritative?
+I built this independent portfolio project around a practical GRC question: where can AI reduce administrative effort without taking over human judgment, methodology, and accountability?
 
-This is a workflow and governance prototype, not a commercial GRC platform or an enterprise-ready product.
+In risk work, a polished answer is not the same thing as a defensible one. I wanted to explore a workflow that helps people document what is known, what is uncertain, and what still needs a GRC decision - rather than performing certainty where it does not exist.
 
 **Business Intake → AI-Assisted Structuring → GRC Review → Human Risk Decision → Deterministic Scoring → Risk Register → Heat Map → Executive Reporting**
 
+This is a workflow and governance prototype, not a commercial GRC platform or an enterprise-ready product.
+
 ## What This Demonstrates
 
-The project brings together core GRC practice and workflow design:
+The project starts with familiar GRC work: listening to stakeholders, translating concerns into structured risk information, assessing exposure, planning treatment, and communicating the portfolio. It asks how that work can be clearer and more consistent without weakening the analyst’s role.
 
-- Translating stakeholder concerns into structured risk information without asking business users to assign risk scores.
-- Assessing risk through analyst review, documented rationale, treatment planning, and executive communication.
-- Designing AI assistance that supports analysis and synthesis without displacing GRC accountability.
-- Applying deterministic rules where methodology needs to remain consistent and explainable.
-- Preserving source-to-record traceability and turning approved risks into a portfolio view for management discussion.
+It brings together:
+
+- Stakeholder engagement without asking business users to assign risk scores.
+- Analyst review, documented rationale, treatment planning, and executive communication.
+- AI assistance for drafting and synthesis, with clear limits on what it can decide.
+- Deterministic methodology and session-level source-to-record traceability.
+- A portfolio view built from approved risks rather than AI-generated conclusions.
 
 <!-- [SCREENSHOT: Business Stakeholder Intake] -->
 
-*Business stakeholders provide plain-language business context, rather than being asked to determine Likelihood, Impact, or a risk rating.*
+*Business stakeholders provide plain-language context rather than being asked to make GRC scoring decisions.*
 
-The result is an end-to-end example of clearer, more consistent risk assessment and treatment while keeping GRC judgment at the center.
+The point is not to make risk assessment look automated. It is to make sound assessment work easier to follow, review, and communicate.
 
 ## Where AI Helps - and Where It Stops
+
+I kept the authority boundary visible: AI can organize information and surface patterns, but it should not quietly become the source of truth for a risk decision.
 
 | AI-Assisted | Analyst-Owned | Deterministic Application Logic |
 | --- | --- | --- |
@@ -33,39 +39,39 @@ The result is an end-to-end example of clearer, more consistent risk assessment 
 | Suggest a treatment-plan draft | Review of executive analysis | Target-date guidance by rating |
 | Synthesize executive-level risk analysis |  |  |
 
-AI recommendations are advisory. The analyst can agree with an AI suggestion, change it, or reject it. Final Likelihood and Impact require explicit analyst confirmation before a risk can be added to the register. The application then calculates the resulting score and rating from those confirmed values rather than asking an LLM to determine the authoritative result.
+AI recommendations stay advisory. An analyst can agree, change the value, or reject the suggestion. Final Likelihood and Impact require explicit confirmation before a risk can enter the register. The application then calculates the score and rating from confirmed values.
 
 <!-- [SCREENSHOT: GRC Review and AI-Structured Draft] -->
 
-*The analyst workspace preserves stakeholder source information alongside the AI-generated draft, including explicit gaps, assumptions, and uncertainties.*
+*The analyst sees stakeholder source information beside the AI-structured draft, including explicit gaps, assumptions, and uncertainties.*
 
 <!-- [SCREENSHOT: AI Recommendation and Final Analyst Assessment] -->
 
-*AI recommendations remain distinct from the final analyst assessment and the calculated risk result.*
+*The separation between AI recommendation, analyst confirmation, and calculated result is deliberate.*
 
 ## End-to-End Workflow and Key Capabilities
 
-### Business intake and submission review
+### Start with the business context
 
-Stakeholders can complete guided questions or paste prepared findings. Before a submission is finalized, the workflow checks for an exact match and can use AI to flag substantial conceptual overlap. These checks are advisory: the stakeholder can review the warning and intentionally submit anyway when appropriate.
+Stakeholders can complete guided questions or paste prepared findings. Before a submission is finalized, the workflow checks for an exact match and can use AI to flag substantial conceptual overlap. The warning is advisory: a person can review the overlap and submit anyway when appropriate.
 
-### Analyst assessment and risk treatment
+### Turn context into an analyst decision
 
-The GRC Review workflow presents original stakeholder context beside an AI-structured draft. The draft uses controlled values for asset type, criticality, CIA considerations, and suggested Likelihood and Impact. The analyst can edit the assessment, see gaps or uncertainty, and explicitly confirm final Likelihood and Impact.
+The GRC Review workspace presents the original stakeholder context beside an AI-structured draft. Controlled values are used for asset type, criticality, CIA considerations, and suggested Likelihood and Impact. Missing information, assumptions, and uncertainties remain visible instead of being silently filled in.
 
-Once confirmed, deterministic logic calculates the risk score and rating. The analyst then selects a treatment strategy, reviews or edits an optional AI treatment suggestion, assigns an owner and target date, and deliberately adds the completed record to the Risk Register. A further duplicate check helps prevent an already registered risk from being added again.
+The analyst can edit the assessment, confirm final Likelihood and Impact, and see the resulting deterministic score and rating. They can then select a treatment strategy, review or edit an AI treatment draft, assign an owner and target date, and add the completed record to the Risk Register. A further duplicate check helps prevent an already registered risk from being added again.
 
 <!-- [SCREENSHOT: Potential Similar Risk Warning] -->
 
-*A potential-similarity warning supports careful stakeholder submission review without silently blocking a human decision.*
+*A potential-similarity warning supports careful submission review without silently blocking a human decision.*
 
-### Portfolio reporting
+### Look across the portfolio
 
 Approved records feed a session-level Risk Register and a 3×3 Risk Heat Map based on final analyst-approved Likelihood and Impact values. The Heat Map can also be exported as a PNG image.
 
 <!-- [SCREENSHOT: Populated Risk Register] -->
 
-*The Risk Register presents the approved assessment, ownership, treatment, status, and rationale in one record.*
+*The Risk Register brings the approved assessment, ownership, treatment, status, and rationale together in one record.*
 
 <!-- [SCREENSHOT: Risk Heat Map] -->
 
@@ -73,9 +79,11 @@ Approved records feed a session-level Risk Register and a 3×3 Risk Heat Map bas
 
 ## Executive Reporting
 
-The Executive Risk Summary separates deterministic portfolio information from AI-assisted narrative analysis. Portfolio counts, scores, ratings, and Heat Map positions come from approved Risk Register records. AI synthesizes supported themes, concentrations, interdependencies, uncertainties, management priorities, and next steps across those records.
+Executive reporting is where a workflow can easily overstate what it knows. I wanted the report to distinguish between portfolio facts and narrative interpretation.
 
-The Executive Analysis prompt is grounded in approved risk and treatment information. It instructs the model not to introduce unsupported management actions, controls, programs, technologies, or capabilities. When the records do not support a conclusion, the intended response is to identify the uncertainty or validation need rather than invent a recommendation. The generated narrative remains subject to human review before download.
+Portfolio counts, scores, ratings, and Heat Map positions come from approved Risk Register records. AI helps synthesize supported themes, concentrations, interdependencies, uncertainties, management priorities, and next steps across those records.
+
+The Executive Analysis prompt is grounded in approved risk and treatment information. It instructs the model not to introduce unsupported management actions, controls, programs, technologies, or capabilities. When the records do not support a conclusion, the intended response is to document the uncertainty or validation need rather than invent a recommendation. The narrative remains subject to human review before download.
 
 The downloadable Executive Risk Report PDF combines the approved portfolio snapshot, visual Heat Map, AI-assisted analysis, and a governance note describing the boundary between deterministic risk information and narrative synthesis.
 
@@ -85,7 +93,7 @@ The downloadable Executive Risk Report PDF combines the approved portfolio snaps
 
 ## Architecture, Governance and Prototype Scope
 
-The implementation is intentionally small and focused on the workflow:
+I kept the implementation small and focused on the workflow rather than recreating an enterprise platform.
 
 - **Next.js 16 App Router, TypeScript, React, and Tailwind CSS** provide the web application.
 - **Server-side Next.js API routes** call the OpenAI Responses API. `OPENAI_API_KEY` remains server-side, and requests use `store: false`.
@@ -105,9 +113,9 @@ The design reflects six governance principles:
 
 ### Intentional prototype boundaries
 
-The project focuses on GRC workflow design, AI assistance, decision points, and governance controls. It does not include authentication or real role enforcement, an enterprise database, durable persistence, production audit history, enterprise integrations, organizational risk taxonomies, a tenant model, or production security hardening.
+These boundaries are part of the design scope. The project does not include authentication or real role enforcement, an enterprise database, durable persistence, production audit history, enterprise integrations, organizational risk taxonomies, a tenant model, or production security hardening.
 
-This prototype demonstrates workflow and governance design rather than proposing a standalone replacement for enterprise GRC platforms. In an enterprise environment, these concepts could be implemented through an existing GRC platform such as ServiceNow IRM, with integrations to enterprise data sources, identity and access management, workflow approvals, audit logging, and organizational risk taxonomies. ServiceNow is not integrated in this project.
+In an enterprise environment, these concepts could be implemented through an existing GRC platform such as ServiceNow IRM, with integrations to enterprise data sources, identity and access management, workflow approvals, audit logging, and organizational risk taxonomies. ServiceNow is not integrated in this project.
 
 ## Run Locally and Portfolio Context
 
@@ -143,4 +151,4 @@ npm run build
 
 ### Portfolio context
 
-This independent project explores how practical GRC workflows can use AI and automation to reduce administrative effort while preserving human judgment, governance, and accountability.
+I built this project to explore how practical GRC workflows can use AI and automation to reduce administrative effort while preserving human judgment, governance, and accountability.
