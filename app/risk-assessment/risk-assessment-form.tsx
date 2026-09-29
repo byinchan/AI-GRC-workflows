@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRiskRegister } from "@/components/risk-register-provider";
 import {
   blankIntakeValues,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/demo-scenarios";
 import { GrcDraft } from "@/lib/grc-assessment";
 import { findExactStakeholderMatch } from "@/lib/stakeholder-similarity";
+import { createStakeholderSubmissionGuard } from "@/lib/stakeholder-submission-guard";
 import { calculateRisk, RiskLevel, toRiskLevel } from "@/lib/grc/risk";
 import {
   canAddToRegister,
@@ -94,6 +95,8 @@ export function RiskAssessmentForm() {
   const [draft, setDraft] = useState<GrcDraft | null>(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const submissionGuard = useRef(createStakeholderSubmissionGuard()).current;
   const [similarity, setSimilarity] = useState<{ matchingSubmissionId: string; rationale: string } | null>(null); const [similarityUnavailable, setSimilarityUnavailable] = useState(false);
   const grcReviewHref = "/grc-review";
   const logOpenGrcReviewClick = () => {
@@ -112,6 +115,7 @@ export function RiskAssessmentForm() {
     });
   };
   const reset = () => {
+    submissionGuard.reset();
     setValues(blankIntakeValues);
     setFindings("");
     setSubmitted(null);
@@ -119,8 +123,8 @@ export function RiskAssessmentForm() {
     setMessage("");
     setIntakeMethod("guided");
   };
-  const finalizeSubmission = (nextSubmission: Record<string, string>) => { setSubmitted(nextSubmission); addStakeholderSubmission(nextSubmission); setSimilarity(null); };
-  const submit = async (event: FormEvent) => { event.preventDefault(); const nextSubmission = intakeMethod === "guided" ? values : { stakeholderFindings: findings }; if (!stakeholderSubmissions.length) return finalizeSubmission(nextSubmission); const exact = findExactStakeholderMatch(nextSubmission, stakeholderSubmissions); if (exact) return setSimilarity({ matchingSubmissionId: exact.id, rationale: "This submission matches the existing stakeholder risk information." }); try { const response = await fetch("/api/stakeholder-similarity", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidate: nextSubmission, existing: stakeholderSubmissions.map(({ id, source }) => ({ id, source })) }) }); if (!response.ok) throw new Error("unavailable"); const result = await response.json(); if (typeof result.potentiallySimilar !== "boolean") throw new Error("invalid"); if (result.potentiallySimilar && result.matchingSubmissionId) return setSimilarity({ matchingSubmissionId: result.matchingSubmissionId, rationale: result.rationale }); finalizeSubmission(nextSubmission); } catch { setSimilarityUnavailable(true); } };
+  const finalizeSubmission = (nextSubmission: Record<string, string>) => { if (!submissionGuard.finalize()) return; setSubmitted(nextSubmission); addStakeholderSubmission(nextSubmission); setSimilarity(null); };
+  const submit = async (event: FormEvent) => { event.preventDefault(); if (!submissionGuard.begin()) return; setSubmitting(true); const nextSubmission = intakeMethod === "guided" ? values : { stakeholderFindings: findings }; try { if (!stakeholderSubmissions.length) return finalizeSubmission(nextSubmission); const exact = findExactStakeholderMatch(nextSubmission, stakeholderSubmissions); if (exact) return setSimilarity({ matchingSubmissionId: exact.id, rationale: "This submission matches the existing stakeholder risk information." }); const response = await fetch("/api/stakeholder-similarity", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidate: nextSubmission, existing: stakeholderSubmissions.map(({ id, source }) => ({ id, source })) }) }); if (!response.ok) throw new Error("unavailable"); const result = await response.json(); if (typeof result.potentiallySimilar !== "boolean") throw new Error("invalid"); if (result.potentiallySimilar && result.matchingSubmissionId) return setSimilarity({ matchingSubmissionId: result.matchingSubmissionId, rationale: result.rationale }); finalizeSubmission(nextSubmission); } catch { setSimilarityUnavailable(true); } finally { submissionGuard.release(); setSubmitting(false); } };
   async function openReview() {
     if (!submitted) return;
     setLoading(true);
@@ -286,8 +290,8 @@ export function RiskAssessmentForm() {
           />
         </label>
       )}
-      <button className="mt-6 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white">
-        Submit to GRC Team
+      <button aria-busy={submitting} className={`mt-6 rounded-lg px-5 py-3 text-sm font-semibold text-white ${submitting ? "cursor-not-allowed bg-slate-500" : "bg-slate-900"}`} disabled={submitting}>
+        {submitting ? "Submitting..." : "Submit to GRC Team"}
       </button>
     </form>
   );
