@@ -12,7 +12,7 @@ This is a workflow and governance prototype, not a commercial GRC platform or an
 
 The project starts with familiar GRC work: listening to stakeholders, translating concerns into structured risk information, assessing exposure, planning treatment, and communicating the portfolio. It asks how that work can be clearer without weakening the analyst’s role.
 
-<!-- [SCREENSHOT: Business Stakeholder Intake] -->
+![Business stakeholder intake showing plain-language risk information](docs/images/business-stakeholder-intake.png)
 
 *Business stakeholders provide plain-language context rather than being asked to make GRC scoring decisions.*
 
@@ -30,11 +30,11 @@ AI can organize information and surface patterns, but it should not quietly beco
 
 AI recommendations stay advisory. Final Likelihood and Impact require explicit analyst confirmation before a risk can enter the register. The application calculates the score and rating from those confirmed values.
 
-<!-- [SCREENSHOT: GRC Review and AI-Structured Draft] -->
+![GRC analyst workspace showing stakeholder source information beside an AI-generated assessment draft](docs/images/grc-analyst-review.png)
 
 *The analyst sees stakeholder source information beside the AI-structured draft, including explicit gaps, assumptions, and uncertainties.*
 
-<!-- [SCREENSHOT: AI Recommendation and Final Analyst Assessment] -->
+![AI risk recommendation separated from the final analyst decision and deterministic calculated result](docs/images/analyst-risk-decision.png)
 
 *The separation between AI recommendation, analyst confirmation, and calculated result is deliberate.*
 
@@ -42,23 +42,19 @@ AI recommendations stay advisory. Final Likelihood and Impact require explicit a
 
 Stakeholders can complete guided questions or paste prepared findings. Before finalization, the workflow checks for an exact match and can use AI to flag substantial conceptual overlap. The warning is advisory: a person can submit anyway when appropriate.
 
+![Potentially similar stakeholder submission warning](docs/images/similar-submission-warning.png)
+
+*A potential-similarity warning supports careful submission review without silently blocking a human decision.*
+
 The GRC Review workspace presents the original stakeholder context beside an AI-structured draft. Controlled values are used for asset type, criticality, CIA considerations, and suggested Likelihood and Impact. Gaps, assumptions, and uncertainties remain visible rather than being silently filled in.
 
 The analyst can edit the assessment, confirm final Likelihood and Impact, and see the deterministic score and rating. They can select a treatment strategy, review or edit an AI treatment draft, assign an owner and target date, and add the record to the Risk Register. A further duplicate check protects against re-adding a registered risk.
 
-<!-- [SCREENSHOT: Potential Similar Risk Warning] -->
-
-*A potential-similarity warning supports careful submission review without silently blocking a human decision.*
-
 Approved records feed a session-level Risk Register and a 3×3 Risk Heat Map based on final analyst-approved Likelihood and Impact values. The Heat Map can also be exported as a PNG image.
 
-<!-- [SCREENSHOT: Populated Risk Register] -->
+![Human-approved Risk Register containing multiple assessed risks](docs/images/risk-register.png)
 
 *The Risk Register brings the approved assessment, ownership, treatment, status, and rationale together in one record.*
-
-<!-- [SCREENSHOT: Risk Heat Map] -->
-
-*The portfolio Heat Map uses deterministic placement and rating treatment derived from approved records.*
 
 ## Executive Reporting
 
@@ -70,9 +66,9 @@ The Executive Analysis prompt is grounded in approved risk and treatment informa
 
 The downloadable Executive Risk Report PDF combines the approved portfolio snapshot, visual Heat Map, AI-assisted analysis, and a governance note describing the boundary between deterministic risk information and narrative synthesis.
 
-<!-- [SCREENSHOT: Executive Risk Report] -->
+![Executive Risk Summary showing portfolio metrics, Heat Map, and AI-assisted analysis](docs/images/executive-risk-summary.png)
 
-*The Executive Risk Report combines approved portfolio data with human-reviewed, AI-assisted analysis for management discussion.*
+*The Executive Risk Summary brings approved portfolio data, deterministic risk information, and human-reviewed AI-assisted analysis together for management discussion.*
 
 ## Architecture, Governance and Prototype Scope
 
