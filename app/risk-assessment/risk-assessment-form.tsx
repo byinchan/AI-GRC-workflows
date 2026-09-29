@@ -546,6 +546,7 @@ function Register({
   const [status, setStatus] = useState<RiskRegisterRecord["status"]>("Open");
   const [suggesting, setSuggesting] = useState(false);
   const [note, setNote] = useState("");
+  const [showConfirmationWarning, setShowConfirmationWarning] = useState(false);
   const [done, setDone] = useState(false);
   const [potentialDuplicate, setPotentialDuplicate] =
     useState<RiskRegisterRecord | null>(null);
@@ -554,6 +555,9 @@ function Register({
   useEffect(() => {
     if (!dateEdited) setDate(suggestedTargetDate(rating));
   }, [rating, dateEdited]);
+  useEffect(() => {
+    if (assessmentConfirmed) setShowConfirmationWarning(false);
+  }, [assessmentConfirmed]);
   async function suggest() {
     setSuggesting(true);
     try {
@@ -590,7 +594,7 @@ function Register({
   }
   function registerNewRisk() {
     if (!assessmentConfirmed) {
-      setNote("Confirm the final Likelihood and Impact assessment before adding this risk.");
+      setShowConfirmationWarning(true);
       return;
     }
     if (!canAddToRegister(strategy, plan)) {
@@ -627,7 +631,7 @@ function Register({
   }
   function add() {
     if (!assessmentConfirmed) {
-      setNote("Confirm the final Likelihood and Impact assessment before adding this risk.");
+      setShowConfirmationWarning(true);
       return;
     }
     if (!canAddToRegister(strategy, plan)) {
@@ -771,6 +775,11 @@ function Register({
       >
         Add to Risk Register
       </button>
+      {showConfirmationWarning && (
+        <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-red-800">
+          Confirm the final Likelihood and Impact assessment before adding this risk.
+        </p>
+      )}
     </section>
   );
 }
