@@ -7,6 +7,16 @@ const RegisterContext = createContext<RegisterContextValue | null>(null);
 let providerInstanceCount = 0;
 const diagnosticPrefix = "[GRC_STATE_DIAGNOSTIC]";
 
+function documentRuntimeMetadata() {
+  const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+  return {
+    documentTimeOrigin: performance.timeOrigin,
+    navigationType: navigation?.type,
+    pathname: window.location.pathname,
+    visibilityState: document.visibilityState,
+  };
+}
+
 export function RiskRegisterProvider({ children }: { children: ReactNode }) {
   const diagnosticInstanceId = useRef(`provider-${++providerInstanceCount}`).current;
   const [records, setRecords] = useState<RiskRegisterRecord[]>([]);
@@ -16,7 +26,7 @@ export function RiskRegisterProvider({ children }: { children: ReactNode }) {
   const markSubmissionRegistered = (id: string, riskRecordId: string) => setStakeholderSubmissions((current) => current.map((submission) => submission.id === id ? { ...submission, status: "Registered", riskRecordId } : submission));
 
   useEffect(() => {
-    console.info(diagnosticPrefix, "provider mounted", { diagnosticInstanceId });
+    console.info(diagnosticPrefix, "provider mounted", { diagnosticInstanceId, ...documentRuntimeMetadata() });
     return () => console.info(diagnosticPrefix, "provider unmounted", { diagnosticInstanceId });
   }, [diagnosticInstanceId]);
   useEffect(() => {
