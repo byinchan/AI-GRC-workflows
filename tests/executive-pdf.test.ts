@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { executivePdfDocument } from "../lib/grc/executive-pdf.ts";
+import { executivePdfDocument, executivePdfTextWidth, wrapExecutivePdfText } from "../lib/grc/executive-pdf.ts";
 import { executiveReportModel } from "../lib/grc/executive-report.ts";
 import type { ExecutiveAnalysis } from "../lib/grc/executive-analysis.ts";
 import type { RiskRegisterRecord } from "../lib/grc/risk-register.ts";
@@ -10,3 +10,14 @@ const prose = "The approved portfolio concentrates exposure in service continuit
 const analysis: ExecutiveAnalysis = { overallRiskPosture: prose, keyRiskThemes: [{ title: "Shared continuity exposure", analysis: prose, relatedRiskIds: ["RISK-001", "RISK-002", "RISK-003"] }], materialExposure: prose, interdependencies: prose, assessmentUncertainty: prose, managementPriorities: [{ title: "Validate recovery evidence", rationale: prose, relatedRiskIds: ["RISK-001", "RISK-002", "RISK-003"] }], decisionsAndEscalations: [], nextSteps: [{ action: "Confirm recovery capability", rationale: prose, relatedRiskIds: ["RISK-001", "RISK-002", "RISK-003"] }] };
 
 test("creates a compact, valid executive PDF with the visual heat map", () => { const pdf = executivePdfDocument(executiveReportModel(records, new Date("2026-09-28T12:00:00Z")), analysis); assert.ok(pdf.startsWith("%PDF-1.4")); assert.equal((pdf.match(/\/Type \/Page /g) ?? []).length, 2); assert.match(pdf, /Risk Heat Map/); assert.match(pdf, /0\.99 0\.89 0\.89 rg/); assert.match(pdf, /1\. Shared continuity exposure/); assert.doesNotMatch(pdf, /- Shared continuity exposure/); assert.equal((pdf.match(/Report governance:/g) ?? []).length, 1); assert.match(pdf, /Page 1 of 2/); assert.match(pdf, /Page 2 of 2/); });
+
+test("wraps long executive item headings and supporting text within their usable widths", () => {
+  const longHeading = "1. Conduct a comprehensive assessment of the vendor's disaster recovery capabilities, focusing on RTO and RPO.";
+  const longBody = "Management should validate recovery objectives, evidence, ownership, testing cadence, and escalation procedures before relying on the vendor for customer notification continuity.";
+  const headingLines = wrapExecutivePdfText(longHeading, 12, 528, "F2");
+  const bodyLines = wrapExecutivePdfText(longBody, 10, 520);
+  assert.ok(headingLines.length > 1);
+  assert.ok(bodyLines.length > 1);
+  assert.ok(headingLines.every((line) => executivePdfTextWidth(line, 12, "F2") <= 528));
+  assert.ok(bodyLines.every((line) => executivePdfTextWidth(line, 10) <= 520));
+});
