@@ -99,21 +99,6 @@ export function RiskAssessmentForm() {
   const submissionGuard = useRef(createStakeholderSubmissionGuard()).current;
   const [similarity, setSimilarity] = useState<{ matchingSubmissionId: string; rationale: string } | null>(null); const [similarityUnavailable, setSimilarityUnavailable] = useState(false);
   const grcReviewHref = "/grc-review";
-  const logOpenGrcReviewClick = () => {
-    console.info("[GRC_STATE_DIAGNOSTIC]", "Open GRC Review click", {
-      destinationHref: grcReviewHref,
-      documentTimeOrigin: performance.timeOrigin,
-      pathname: window.location.pathname,
-      stakeholderSubmissionIds: stakeholderSubmissions.map(({ id }) => id),
-    });
-  };
-  const logOpenGrcReviewClientNavigation = () => {
-    console.info("[GRC_STATE_DIAGNOSTIC]", "Open GRC Review client navigation", {
-      destinationHref: grcReviewHref,
-      documentTimeOrigin: performance.timeOrigin,
-      pathname: window.location.pathname,
-    });
-  };
   const reset = () => {
     submissionGuard.reset();
     setValues(blankIntakeValues);
@@ -174,7 +159,7 @@ export function RiskAssessmentForm() {
           >
             Add Another Risk
           </button>
-          <Link className="rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white" href={grcReviewHref} onClick={logOpenGrcReviewClick} onNavigate={logOpenGrcReviewClientNavigation}>Open GRC Review</Link>
+          <Link className="rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white" href={grcReviewHref}>Open GRC Review</Link>
         </div>
       </section>
     );
