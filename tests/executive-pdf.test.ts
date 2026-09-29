@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { executivePdfDocument, executivePdfHeatMapPosition, executivePdfTextWidth, wrapExecutivePdfText } from "../lib/grc/executive-pdf.ts";
+import { executivePdfDocument, executivePdfHeatMapPosition, executivePdfItemTextLayout, executivePdfTextWidth, wrapExecutivePdfText } from "../lib/grc/executive-pdf.ts";
 import { executiveReportModel } from "../lib/grc/executive-report.ts";
 import type { ExecutiveAnalysis } from "../lib/grc/executive-analysis.ts";
 import type { RiskRegisterRecord } from "../lib/grc/risk-register.ts";
@@ -15,11 +15,15 @@ test("wraps long executive item headings and supporting text within their usable
   const longHeading = "1. Conduct a comprehensive assessment of the vendor's disaster recovery capabilities, focusing on RTO and RPO.";
   const longBody = "Management should validate recovery objectives, evidence, ownership, testing cadence, and escalation procedures before relying on the vendor for customer notification continuity.";
   const headingLines = wrapExecutivePdfText(longHeading, 12, 528, "F2");
-  const bodyLines = wrapExecutivePdfText(longBody, 10, 520);
+  const bodyLines = wrapExecutivePdfText(longBody, 10, 516);
   assert.ok(headingLines.length > 1);
   assert.ok(bodyLines.length > 1);
   assert.ok(headingLines.every((line) => executivePdfTextWidth(line, 12, "F2") <= 528));
-  assert.ok(bodyLines.every((line) => executivePdfTextWidth(line, 10) <= 520));
+  assert.ok(bodyLines.every((line) => executivePdfTextWidth(line, 10) <= 516));
+});
+
+test("uses one consistent inset for executive item supporting text", () => {
+  assert.deepEqual(executivePdfItemTextLayout(), { itemHeadingX: 42, itemBodyX: 54, itemBodyWidth: 516 });
 });
 
 test("positions PDF heat map cells with high likelihood at the visual top", () => {

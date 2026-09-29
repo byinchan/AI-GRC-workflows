@@ -6,7 +6,9 @@ const PAGE_HEIGHT = 842;
 const MARGIN = 42;
 const BOTTOM = 48;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
-const INSET_CONTENT_WIDTH = CONTENT_WIDTH - 8;
+const ITEM_BODY_INSET = 12;
+const ITEM_BODY_X = MARGIN + ITEM_BODY_INSET;
+const ITEM_BODY_WIDTH = CONTENT_WIDTH - ITEM_BODY_INSET;
 const BODY_SIZE = 10;
 const BODY_LEADING = 12;
 const SECTION_SIZE = 14;
@@ -81,6 +83,10 @@ export function executivePdfHeatMapPosition(likelihood: 1 | 2 | 3, impact: 1 | 2
   };
 }
 
+export function executivePdfItemTextLayout() {
+  return { itemHeadingX: MARGIN, itemBodyX: ITEM_BODY_X, itemBodyWidth: ITEM_BODY_WIDTH };
+}
+
 function heatMapDrawing(model: ReportModel) {
   const labels = [text("Likelihood", 42, 624, 9, "F2"), text("Impact", 312, 704, 9, "F2")];
   return [...labels, ...model.heatMap.cells.flatMap((cell) => {
@@ -103,7 +109,7 @@ export function executivePdfDocument(model: ReportModel, analysis: ExecutiveAnal
     const title = item.title ?? item.action ?? "";
     const body = item.analysis ?? item.rationale;
     const related = `Related risks: ${item.relatedRiskIds.join(", ")}`;
-    return wrapExecutivePdfText(title, ITEM_TITLE_SIZE, CONTENT_WIDTH, "F2").length * ITEM_TITLE_LEADING + wrapExecutivePdfText(body, BODY_SIZE, INSET_CONTENT_WIDTH).length * BODY_LEADING + (item.relatedRiskIds.length ? wrapExecutivePdfText(related, 9, INSET_CONTENT_WIDTH).length * 11 : 0) + ITEM_GAP;
+    return wrapExecutivePdfText(title, ITEM_TITLE_SIZE, CONTENT_WIDTH, "F2").length * ITEM_TITLE_LEADING + wrapExecutivePdfText(body, BODY_SIZE, ITEM_BODY_WIDTH).length * BODY_LEADING + (item.relatedRiskIds.length ? wrapExecutivePdfText(related, 9, ITEM_BODY_WIDTH).length * 11 : 0) + ITEM_GAP;
   };
   const collection = (title: string, items: CollectionItem[]) => {
     const firstHeight = items.length ? itemHeight(items[0]) : BODY_LEADING;
@@ -114,8 +120,8 @@ export function executivePdfDocument(model: ReportModel, analysis: ExecutiveAnal
       if (available() < height && height <= PAGE_HEIGHT - MARGIN - BOTTOM) newPage();
       const titleText = `${index + 1}. ${item.title ?? item.action ?? ""}`;
       wrapExecutivePdfText(titleText, ITEM_TITLE_SIZE, CONTENT_WIDTH, "F2").forEach((line) => addLine(line, ITEM_TITLE_SIZE, "F2", ITEM_TITLE_LEADING));
-      wrapExecutivePdfText(item.analysis ?? item.rationale, BODY_SIZE, INSET_CONTENT_WIDTH).forEach((line) => addLine(line, BODY_SIZE, "F1", BODY_LEADING, MARGIN + 8));
-      if (item.relatedRiskIds.length) wrapExecutivePdfText(`Related risks: ${item.relatedRiskIds.join(", ")}`, 9, INSET_CONTENT_WIDTH).forEach((line) => addLine(line, 9, "F1", 11, MARGIN + 8));
+      wrapExecutivePdfText(item.analysis ?? item.rationale, BODY_SIZE, ITEM_BODY_WIDTH).forEach((line) => addLine(line, BODY_SIZE, "F1", BODY_LEADING, ITEM_BODY_X));
+      if (item.relatedRiskIds.length) wrapExecutivePdfText(`Related risks: ${item.relatedRiskIds.join(", ")}`, 9, ITEM_BODY_WIDTH).forEach((line) => addLine(line, 9, "F1", 11, ITEM_BODY_X));
       gap(ITEM_GAP);
     });
   };
