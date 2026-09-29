@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { executivePdfDocument, executivePdfTextWidth, wrapExecutivePdfText } from "../lib/grc/executive-pdf.ts";
+import { executivePdfDocument, executivePdfHeatMapPosition, executivePdfTextWidth, wrapExecutivePdfText } from "../lib/grc/executive-pdf.ts";
 import { executiveReportModel } from "../lib/grc/executive-report.ts";
 import type { ExecutiveAnalysis } from "../lib/grc/executive-analysis.ts";
 import type { RiskRegisterRecord } from "../lib/grc/risk-register.ts";
@@ -20,4 +20,10 @@ test("wraps long executive item headings and supporting text within their usable
   assert.ok(bodyLines.length > 1);
   assert.ok(headingLines.every((line) => executivePdfTextWidth(line, 12, "F2") <= 528));
   assert.ok(bodyLines.every((line) => executivePdfTextWidth(line, 10) <= 520));
+});
+
+test("positions PDF heat map cells with high likelihood at the visual top", () => {
+  assert.deepEqual(executivePdfHeatMapPosition(1, 1), { column: 0, row: 2, x: 116, y: 542 });
+  assert.deepEqual(executivePdfHeatMapPosition(2, 3), { column: 2, row: 1, x: 388, y: 589 });
+  assert.deepEqual(executivePdfHeatMapPosition(3, 3), { column: 2, row: 0, x: 388, y: 636 });
 });

@@ -20,6 +20,10 @@ const FOOTER_PAGE_NUMBER_Y = 30;
 const FOOTER_GOVERNANCE_BOTTOM_Y = 56;
 const esc = (value: string) => value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/[^\x20-\x7E]/g, " ");
 const heatColor = { Low: "0.82 0.98 0.90", Medium: "1 0.95 0.78", High: "1 0.93 0.84", Critical: "0.99 0.89 0.89" } as const;
+const HEAT_MAP_X = 116;
+const HEAT_MAP_Y = 542;
+const HEAT_MAP_CELL_WIDTH = 136;
+const HEAT_MAP_CELL_HEIGHT = 47;
 type ReportModel = ReturnType<typeof executiveReportModel>;
 type Page = { commands: string[]; y: number };
 type CollectionItem = { title?: string; action?: string; analysis?: string; rationale: string; relatedRiskIds: string[] };
@@ -68,12 +72,20 @@ export function wrapExecutivePdfText(value: string, size = BODY_SIZE, maxWidth =
 function paragraphs(value: string) { return value.trim().split(/\n\s*\n/).map((paragraph) => wrapExecutivePdfText(paragraph)).filter((lines) => lines.length); }
 function text(value: string, x: number, y: number, size: number, font = "F1") { return `BT /${font} ${size} Tf ${x} ${y} Td (${esc(value)}) Tj ET`; }
 
+export function executivePdfHeatMapPosition(likelihood: 1 | 2 | 3, impact: 1 | 2 | 3) {
+  return {
+    column: impact - 1,
+    row: 3 - likelihood,
+    x: HEAT_MAP_X + (impact - 1) * HEAT_MAP_CELL_WIDTH,
+    y: HEAT_MAP_Y + (likelihood - 1) * HEAT_MAP_CELL_HEIGHT,
+  };
+}
+
 function heatMapDrawing(model: ReportModel) {
-  const x = 116, y = 542, width = 136, height = 47;
   const labels = [text("Likelihood", 42, 624, 9, "F2"), text("Impact", 312, 704, 9, "F2")];
   return [...labels, ...model.heatMap.cells.flatMap((cell) => {
-    const cellX = x + (cell.impact - 1) * width, cellY = y + (3 - cell.likelihood) * height;
-    return [`q ${heatColor[cell.rating]} rg ${cellX} ${cellY} ${width - 4} ${height - 4} re f 0.45 0.50 0.60 RG ${cellX} ${cellY} ${width - 4} ${height - 4} re S Q`, text(`${cell.rating} | Score ${cell.score}`, cellX + 6, cellY + 29, 8, "F2"), text(cell.risks.join(", "), cellX + 6, cellY + 15, 8)];
+    const { x, y } = executivePdfHeatMapPosition(cell.likelihood, cell.impact);
+    return [`q ${heatColor[cell.rating]} rg ${x} ${y} ${HEAT_MAP_CELL_WIDTH - 4} ${HEAT_MAP_CELL_HEIGHT - 4} re f 0.45 0.50 0.60 RG ${x} ${y} ${HEAT_MAP_CELL_WIDTH - 4} ${HEAT_MAP_CELL_HEIGHT - 4} re S Q`, text(`${cell.rating} | Score ${cell.score}`, x + 6, y + 29, 8, "F2"), text(cell.risks.join(", "), x + 6, y + 15, 8)];
   })].join("\n");
 }
 
