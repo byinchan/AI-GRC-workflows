@@ -293,6 +293,7 @@ export function Review({
   const [impact, setImpact] = useState<RiskLevel>(
     toRiskLevel(draft.suggestedImpact),
   );
+  const [assessmentConfirmed, setAssessmentConfirmed] = useState(false);
   const [rationale, setRationale] = useState(draft.suggestedRiskRationale);
   const result = calculateRisk(likelihood, impact);
   const update = (key: keyof GrcDraft, value: string) =>
@@ -360,13 +361,29 @@ export function Review({
           consequence if it happens. The app calculates the score and rating
           from the analyst’s final selections.
         </p>
+        <div className="mt-4 rounded-lg border border-teal-200 bg-teal-50 p-4 text-sm">
+          <p className="font-semibold text-teal-900">AI Recommendation</p>
+          <p className="mt-2">Likelihood: {formatRiskLevel(toRiskLevel(draft.suggestedLikelihood))}</p>
+          <p className="mt-1">Impact: {formatRiskLevel(toRiskLevel(draft.suggestedImpact))}</p>
+        </div>
+        <p className="mt-5 text-sm font-semibold">Final Analyst Decision</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Level
             label="Final Likelihood"
             value={likelihood}
-            onChange={setLikelihood}
+            onChange={(value) => {
+              setLikelihood(value);
+              setAssessmentConfirmed(false);
+            }}
           />
-          <Level label="Final Impact" value={impact} onChange={setImpact} />
+          <Level
+            label="Final Impact"
+            value={impact}
+            onChange={(value) => {
+              setImpact(value);
+              setAssessmentConfirmed(false);
+            }}
+          />
         </div>
         <label className="mt-4 block">
           <span className="text-sm font-medium">Analyst Rationale</span>
@@ -375,6 +392,15 @@ export function Review({
             value={rationale}
             onChange={(event) => setRationale(event.target.value)}
           />
+        </label>
+        <label className="mt-4 flex items-start gap-2 rounded-lg border border-slate-200 p-3 text-sm">
+          <input
+            checked={assessmentConfirmed}
+            className="mt-0.5"
+            type="checkbox"
+            onChange={(event) => setAssessmentConfirmed(event.target.checked)}
+          />
+          <span>I confirm these are my final Likelihood and Impact assessment values.</span>
         </label>
         <p className="mt-5 rounded-lg bg-slate-900 p-4 text-white">
           Likelihood {likelihood} × Impact {impact} = Risk Score {result.score}{" "}
@@ -389,6 +415,7 @@ export function Review({
         rating={result.rating}
         source={source}
         submissionId={submissionId}
+        assessmentConfirmed={assessmentConfirmed}
       />
     </section>
   );
@@ -454,6 +481,9 @@ function UncertaintyFields({
     </>
   );
 }
+function formatRiskLevel(value: RiskLevel) {
+  return `${value} - ${value === 1 ? "Low" : value === 2 ? "Medium" : "High"}`;
+}
 function Level({
   label,
   value,
@@ -488,6 +518,7 @@ function Register({
   rating,
   source,
   submissionId,
+  assessmentConfirmed,
 }: {
   review: GrcDraft;
   likelihood: RiskLevel;
@@ -496,6 +527,7 @@ function Register({
   rating: RiskRegisterRecord["riskRating"];
   source: Record<string, string>;
   submissionId?: string;
+  assessmentConfirmed: boolean;
 }) {
   const { records, stakeholderSubmissions, addRecord, markSubmissionRegistered } = useRiskRegister();
   const [statement, setStatement] = useState(
@@ -557,6 +589,10 @@ function Register({
     }
   }
   function registerNewRisk() {
+    if (!assessmentConfirmed) {
+      setNote("Confirm the final Likelihood and Impact assessment before adding this risk.");
+      return;
+    }
     if (!canAddToRegister(strategy, plan)) {
       setNote(
         "A Treatment Action / Plan is required when the strategy is Mitigate.",
@@ -590,6 +626,10 @@ function Register({
     setDone(true);
   }
   function add() {
+    if (!assessmentConfirmed) {
+      setNote("Confirm the final Likelihood and Impact assessment before adding this risk.");
+      return;
+    }
     if (!canAddToRegister(strategy, plan)) {
       setNote(
         "A Treatment Action / Plan is required when the strategy is Mitigate.",
