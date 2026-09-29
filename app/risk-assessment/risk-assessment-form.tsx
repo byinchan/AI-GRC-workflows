@@ -160,7 +160,7 @@ export function RiskAssessmentForm() {
         </p>
         {message && <p className="mt-3 text-sm text-amber-800">{message}</p>}
         <p className="mt-3 text-sm text-slate-600">
-          {stakeholderSubmissions.length} risk{stakeholderSubmissions.length === 1 ? "" : "s"} submitted in this browser session.
+          {stakeholderSubmissions.length} risk{stakeholderSubmissions.length === 1 ? "" : "s"} submitted in this browser tab session.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <button
